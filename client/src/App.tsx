@@ -12,18 +12,16 @@ import { GigFeed } from './components/GigFeed';
 import { CampusMap } from './components/CampusMap';
 import { PostGigModal } from './components/PostGigModal';
 import { GigDetailModal } from './components/GigDetailModal';
-import { MatchingInspector } from './components/MatchingInspector';
 import { ActiveGigWorkspace } from './components/ActiveGigWorkspace';
 import { ProfileView } from './components/ProfileView';
 import { NotificationDrawer } from './components/NotificationDrawer';
-import { BellRing } from 'lucide-react';
 
 export function App() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'feed' | 'map' | 'post' | 'active' | 'matching' | 'profile'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'map' | 'active' | 'profile'>('feed');
 
   // Modals and Drawers
   const [isNewGigModalOpen, setIsNewGigModalOpen] = useState(false);
@@ -33,9 +31,9 @@ export function App() {
   // Selected Gigs for views
   const [selectedGig, setSelectedGig] = useState<Gig | null>(null);
   const [activeWorkspaceGig, setActiveWorkspaceGig] = useState<Gig | null>(null);
-  const [matchingInspectorGig, setMatchingInspectorGig] = useState<Gig | null>(null);
+  const [prefillLocation, setPrefillLocation] = useState<string | undefined>(undefined);
 
-  // Live Toast for Proximity Waves
+  // Live Toast for new requests
   const [liveToast, setLiveToast] = useState<{ title: string; message: string } | null>(null);
 
   // Load Users & Initial Current User
@@ -44,7 +42,6 @@ export function App() {
       .then((users) => {
         setAllUsers(users);
         if (users.length > 0) {
-          // Default to Rahul Sharma (Worker) or Aman Verma (Poster)
           const rahul = users.find((u) => u.id === 'usr_rahul') || users[0];
           setCurrentUser(rahul);
         }
@@ -83,16 +80,20 @@ export function App() {
         if (payload.type === 'GIG_CREATED') {
           reloadGigs();
           setLiveToast({
-            title: '✨ New Campus Gig Posted',
+            title: 'NEW CAMPUS REQUEST',
             message: `${payload.data.title} (₹${payload.data.budget})`
           });
-          setTimeout(() => setLiveToast(null), 5000);
+          setTimeout(() => setLiveToast(null), 4000);
         } else if (payload.type === 'WAVE_ESCALATED') {
           reloadGigs();
           if (currentUser) {
             fetchNotifications(currentUser.id).then(setNotifications);
           }
-        } else if (payload.type === 'GIG_ASSIGNED' || payload.type === 'GIG_STATUS_UPDATED' || payload.type === 'GIG_COMPLETED') {
+        } else if (
+          payload.type === 'GIG_ASSIGNED' ||
+          payload.type === 'GIG_STATUS_UPDATED' ||
+          payload.type === 'GIG_COMPLETED'
+        ) {
           reloadGigs();
         }
       } catch (err) {
@@ -126,11 +127,6 @@ export function App() {
     setIsDetailModalOpen(true);
   };
 
-  const handleInspectMatching = (gig: Gig) => {
-    setMatchingInspectorGig(gig);
-    setActiveTab('matching');
-  };
-
   const handleOpenWorkspace = (gig: Gig) => {
     setActiveWorkspaceGig(gig);
     setActiveTab('active');
@@ -139,8 +135,7 @@ export function App() {
   const handleGigCreated = (newGig: Gig) => {
     reloadGigs();
     setSelectedGig(newGig);
-    setMatchingInspectorGig(newGig);
-    setActiveTab('matching'); // Take poster directly to matching inspector to view candidate ranking
+    setActiveTab('feed');
   };
 
   const handleAcceptedGig = (updatedGig: Gig) => {
@@ -163,8 +158,8 @@ export function App() {
   const unreadNotificationsCount = notifications.filter((n) => n.status === 'UNREAD').length;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col">
-      {/* Top Navbar */}
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-blue-700 selection:text-white">
+      {/* Top Brutalist Navbar with PWA tabs */}
       <Navbar
         currentUser={currentUser}
         allUsers={allUsers}
@@ -176,7 +171,10 @@ export function App() {
         setActiveTab={setActiveTab}
         unreadCount={unreadNotificationsCount}
         onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
-        onOpenNewGigModal={() => setIsNewGigModalOpen(true)}
+        onOpenNewGigModal={() => {
+          setPrefillLocation(undefined);
+          setIsNewGigModalOpen(true);
+        }}
       />
 
       {/* Main Content Area */}
@@ -190,8 +188,11 @@ export function App() {
               setSelectedGig(gig);
               setIsDetailModalOpen(true);
             }}
-            onInspectMatching={handleInspectMatching}
-            onOpenNewGig={() => setIsNewGigModalOpen(true)}
+            onOpenNewGig={(loc) => {
+              setPrefillLocation(loc);
+              setIsNewGigModalOpen(true);
+            }}
+            onLocationFilterChange={handleUpdateLocation}
           />
         )}
 
@@ -218,14 +219,6 @@ export function App() {
           />
         )}
 
-        {activeTab === 'matching' && (
-          <MatchingInspector
-            selectedGig={matchingInspectorGig || gigs[0] || null}
-            allGigs={gigs}
-            onSelectGig={(g) => setMatchingInspectorGig(g)}
-          />
-        )}
-
         {activeTab === 'profile' && (
           <ProfileView currentUser={currentUser} />
         )}
@@ -237,6 +230,7 @@ export function App() {
         isOpen={isNewGigModalOpen}
         onClose={() => setIsNewGigModalOpen(false)}
         onGigCreated={handleGigCreated}
+        initialLocation={prefillLocation}
       />
 
       <GigDetailModal
@@ -245,7 +239,6 @@ export function App() {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         onAccepted={handleAcceptedGig}
-        onOpenMatching={handleInspectMatching}
         onOpenWorkspace={handleOpenWorkspace}
       />
 
@@ -260,15 +253,15 @@ export function App() {
         onMarkRead={handleMarkNotificationRead}
       />
 
-      {/* Live Proximity Wave Toast */}
+      {/* Minimal Brutalist Toast in Royal Blue */}
       {liveToast && (
-        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in slide-in-from-bottom-5">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0">
-            <BellRing className="w-5 h-5 animate-bounce" />
+        <div className="fixed bottom-16 md:bottom-5 right-5 z-50 bg-blue-900 text-white p-3.5 border-2 border-white shadow-[4px_4px_0px_#1e3a8a] flex items-center gap-3 animate-in fade-in">
+          <div className="w-6 h-6 bg-white text-blue-900 flex items-center justify-center font-black text-xs shrink-0">
+            !
           </div>
           <div>
-            <h5 className="font-bold text-xs">{liveToast.title}</h5>
-            <p className="text-[11px] text-slate-300 mt-0.5">{liveToast.message}</p>
+            <h5 className="font-black text-xs uppercase tracking-wider">{liveToast.title}</h5>
+            <p className="text-[11px] text-blue-100 font-medium">{liveToast.message}</p>
           </div>
         </div>
       )}

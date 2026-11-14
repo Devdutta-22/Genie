@@ -2,50 +2,94 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --secondary: #06b6d4;
-  --accent: #f59e0b;
-  --background: #f8fafc;
-  --surface: #ffffff;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
+  --royal-blue: #1d4ed8;
+  --royal-blue-dark: #1e3a8a;
+  --royal-blue-light: #3b82f6;
+  --royal-blue-subtle: #eff6ff;
+  --border-strong: #1e3a8a;
+  --bg-page: #f8fafc;
+  --bg-panel: #ffffff;
+  --shadow-brutal: 4px 4px 0px #1e3a8a;
+  --shadow-brutal-sm: 2px 2px 0px #1e3a8a;
+  --shadow-brutal-hover: 6px 6px 0px #1e3a8a;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--bg-page);
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom pulse animations for proximity waves */
-@keyframes wave-pulse {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 20px rgba(79, 70, 229, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
-  }
+/* Neo-Brutalist utility classes */
+.brutal-card {
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  box-shadow: 4px 4px 0px #000000;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.wave-ring {
-  animation: wave-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+.brutal-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0px #000000;
+}
+
+.brutal-btn {
+  background-color: #000000;
+  color: #ffffff;
+  border: 2px solid #000000;
+  box-shadow: 3px 3px 0px #000000;
+  font-weight: 700;
+  transition: all 0.1s ease;
+}
+
+.brutal-btn:hover {
+  background-color: #1a1a1a;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #000000;
+}
+
+.brutal-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #000000;
+}
+
+.brutal-btn-secondary {
+  background-color: #ffffff;
+  color: #000000;
+  border: 2px solid #000000;
+  box-shadow: 3px 3px 0px #000000;
+  font-weight: 700;
+  transition: all 0.1s ease;
+}
+
+.brutal-btn-secondary:hover {
+  background-color: #f4f4f5;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #000000;
+}
+
+.brutal-btn-secondary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #000000;
+}
+
+.brutal-badge {
+  border: 1.5px solid #000000;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Custom Leaflet overrides */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  border-radius: 0.75rem;
+  border: 2px solid #000000;
+  box-shadow: 4px 4px 0px #000000;
   z-index: 10;
 }
 
@@ -56,14 +100,10 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f4f4f5;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+  background: #000000;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}

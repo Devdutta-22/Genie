@@ -1,11 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Gig, User } from '../types';
 import L from 'leaflet';
-import {
-  MapPin,
-  Compass,
-  Radio
-} from 'lucide-react';
+import { COMMUNITY_LOCATIONS } from './CommunitySection';
 
 interface CampusMapProps {
   gigs: Gig[];
@@ -14,15 +10,6 @@ interface CampusMapProps {
   onAcceptGig: (gig: Gig) => void;
   onUpdateLocation: (locationName: string, lat: number, lon: number) => void;
 }
-
-const CAMPUS_HOTSPOTS = [
-  { name: 'Block B (Tech Hub)', lat: 28.5448, lon: 77.1935, desc: 'CSE Dept & Labs' },
-  { name: 'Central Library', lat: 28.5435, lon: 77.1940, desc: 'Study halls & reading zones' },
-  { name: 'SAC & Canteen', lat: 28.5440, lon: 77.1918, desc: 'Food court & student activity' },
-  { name: 'Hostel 4 (Block D)', lat: 28.5420, lon: 77.1905, desc: 'Boys & girls hostel quad' },
-  { name: 'Block A (CSE & Xerox)', lat: 28.5455, lon: 77.1920, desc: 'Xerox & workshop' },
-  { name: 'Sports Complex', lat: 28.5480, lon: 77.1950, desc: 'Grounds & badminton' }
-];
 
 export const CampusMap: React.FC<CampusMapProps> = ({
   gigs,
@@ -34,22 +21,20 @@ export const CampusMap: React.FC<CampusMapProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const circlesLayerRef = useRef<L.LayerGroup | null>(null);
 
   const [selectedGig, setSelectedGig] = useState<Gig | null>(null);
-  const [showWaves, setShowWaves] = useState(true);
 
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
 
-    const defaultLat = currentUser?.latitude || 28.5448;
-    const defaultLon = currentUser?.longitude || 77.1935;
+    const defaultLat = currentUser?.latitude || 28.3664; // Galgotias Univ default
+    const defaultLon = currentUser?.longitude || 77.5404;
 
     const map = L.map(mapContainerRef.current, {
       center: [defaultLat, defaultLon],
-      zoom: 16,
+      zoom: 13,
       zoomControl: true
     });
 
@@ -58,8 +43,6 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     }).addTo(map);
 
     markersLayerRef.current = L.layerGroup().addTo(map);
-    circlesLayerRef.current = L.layerGroup().addTo(map);
-
     mapInstanceRef.current = map;
 
     return () => {
@@ -68,221 +51,185 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     };
   }, []);
 
-  // Update Markers & Circles when Gigs or User changes
+  // Update Markers on Gigs/Location change
   useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || !markersLayerRef.current || !circlesLayerRef.current) return;
+    if (!mapInstanceRef.current || !markersLayerRef.current) return;
 
     markersLayerRef.current.clearLayers();
-    circlesLayerRef.current.clearLayers();
 
-    const userLat = currentUser?.latitude || 28.5448;
-    const userLon = currentUser?.longitude || 77.1935;
+    const userLat = currentUser?.latitude || 28.3664;
+    const userLon = currentUser?.longitude || 77.5404;
 
-    // 1. Draw Wave Proximity Circles around Current User
-    if (showWaves) {
-      // Wave 1: 500m (Green/Indigo)
-      L.circle([userLat, userLon], {
-        radius: 500,
-        color: '#4f46e5',
-        fillColor: '#6366f1',
-        fillOpacity: 0.08,
-        weight: 1.5,
-        dashArray: '4, 6'
-      })
-        .bindTooltip('Wave 1 Radius (500m)', { permanent: false, direction: 'top' })
-        .addTo(circlesLayerRef.current);
-
-      // Wave 2: 1000m (Cyan)
-      L.circle([userLat, userLon], {
-        radius: 1000,
-        color: '#06b6d4',
-        fillColor: '#06b6d4',
-        fillOpacity: 0.04,
-        weight: 1,
-        dashArray: '5, 8'
-      })
-        .bindTooltip('Wave 2 Radius (1km)', { permanent: false, direction: 'top' })
-        .addTo(circlesLayerRef.current);
-    }
-
-    // 2. Add Current User Pin
+    // 1. User Pin (Brutalist royal blue badge)
     const userIcon = L.divIcon({
       className: 'custom-user-marker',
       html: `
-        <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
-          <div style="position: absolute; width: 36px; height: 36px; background-color: rgba(79, 70, 229, 0.3); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-          <div style="position: relative; width: 22px; height: 22px; background-color: #4f46e5; border: 3px solid white; border-radius: 50%; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);"></div>
+        <div style="background: #1d4ed8; color: #ffffff; border: 2px solid #ffffff; box-shadow: 3px 3px 0px #1e3a8a; padding: 4px 8px; font-weight: 900; font-size: 11px; text-transform: uppercase; white-space: nowrap;">
+          YOU
         </div>
       `,
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
+      iconSize: [40, 24],
+      iconAnchor: [20, 12]
     });
 
-    const userMarker = L.marker([userLat, userLon], { icon: userIcon }).addTo(markersLayerRef.current);
-    userMarker.bindPopup(`
-      <div style="font-family: inherit; font-size: 13px; line-height: 1.4;">
-        <b style="color: #4f46e5;">👤 You are here</b><br/>
-        <b>${currentUser?.name || 'Student'}</b><br/>
-        <span style="color: #64748b;">${currentUser?.location_name || 'Campus'}</span>
-      </div>
-    `);
+    L.marker([userLat, userLon], { icon: userIcon })
+      .addTo(markersLayerRef.current)
+      .bindPopup(`
+        <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #1e3a8a;">
+          <b style="font-size: 13px;">${currentUser?.name || 'Student'}</b><br/>
+          <span>📍 ${currentUser?.location_name || 'Campus'}</span>
+        </div>
+      `);
 
-    // 3. Add Gigs Pins
+    // 2. Add 4 Community Hub Markers
+    COMMUNITY_LOCATIONS.forEach((hub) => {
+      const hubIcon = L.divIcon({
+        className: 'custom-hub-marker',
+        html: `
+          <div style="background: #ffffff; color: #1e3a8a; border: 2px solid #1e3a8a; box-shadow: 2px 2px 0px #1e3a8a; padding: 3px 7px; font-weight: 900; font-size: 10px; text-transform: uppercase; white-space: nowrap;">
+            🏛️ ${hub.alias}
+          </div>
+        `,
+        iconSize: [68, 24],
+        iconAnchor: [34, 12]
+      });
+
+      L.marker([hub.lat, hub.lon], { icon: hubIcon })
+        .addTo(markersLayerRef.current!)
+        .bindPopup(`
+          <div style="font-family: inherit; font-size: 12px;">
+            <b style="color: #1e3a8a;">${hub.name}</b><br/>
+            <span style="color: #475569;">${hub.tagline}</span>
+          </div>
+        `);
+    });
+
+    // 3. Add Gigs Pins (Royal Blue brutalist price tag)
     gigs.forEach((gig) => {
-      const isUrgent = gig.urgency === 'Urgent';
-      const bgColor = isUrgent ? '#e11d48' : '#4f46e5';
-
       const gigIcon = L.divIcon({
         className: 'custom-gig-marker',
         html: `
           <div style="
-            background: ${bgColor};
-            color: white;
+            background: #1d4ed8;
+            color: #ffffff;
             font-size: 11px;
-            font-weight: 800;
-            padding: 4px 8px;
-            border-radius: 9999px;
-            border: 2px solid white;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
+            font-weight: 900;
+            padding: 3px 8px;
+            border: 2px solid #ffffff;
+            box-shadow: 3px 3px 0px #1e3a8a;
             cursor: pointer;
             white-space: nowrap;
           ">
-            <span>₹${gig.budget}</span>
+            ₹${gig.budget}
           </div>
         `,
-        iconSize: [50, 26],
-        iconAnchor: [25, 13]
+        iconSize: [46, 24],
+        iconAnchor: [23, 12]
       });
 
-      const marker = L.marker([gig.latitude, gig.longitude], { icon: gigIcon }).addTo(markersLayerRef.current!);
+      const marker = L.marker([gig.latitude, gig.longitude], { icon: gigIcon }).addTo(
+        markersLayerRef.current!
+      );
 
       marker.on('click', () => {
         setSelectedGig(gig);
       });
-
-      marker.bindPopup(`
-        <div style="font-family: inherit; font-size: 13px; max-width: 200px;">
-          <div style="font-size: 11px; font-weight: bold; color: ${bgColor}; text-transform: uppercase;">${gig.category}</div>
-          <b style="font-size: 14px; color: #0f172a;">${gig.title}</b>
-          <div style="margin: 4px 0; color: #475569; font-size: 12px;">📍 ${gig.location_name}</div>
-          <div style="font-size: 13px; font-weight: 800; color: #0f172a; margin-top: 4px;">₹${gig.budget} <span style="font-size: 10px; font-weight: normal; color: #64748b;">(Worker gets ₹${gig.worker_payout})</span></div>
-        </div>
-      `);
     });
-  }, [gigs, currentUser, showWaves]);
+  }, [gigs, currentUser]);
 
-  const handlePanToHotspot = (spot: (typeof CAMPUS_HOTSPOTS)[0]) => {
+  const handleFlyTo = (loc: (typeof COMMUNITY_LOCATIONS)[0]) => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo([spot.lat, spot.lon], 17, { duration: 1.2 });
+      mapInstanceRef.current.flyTo([loc.lat, loc.lon], 15, { duration: 1 });
+      onUpdateLocation(loc.name, loc.lat, loc.lon);
     }
-    onUpdateLocation(spot.name, spot.lat, spot.lon);
   };
 
   return (
-    <div className="space-y-4">
-      {/* Map Control Header */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Compass className="w-5 h-5" />
-          </div>
+    <div className="space-y-4 pb-16 font-sans text-slate-900">
+      {/* Brutalist Royal Blue Header & Location Switcher */}
+      <div className="border-2 border-blue-900 bg-white p-4 shadow-[4px_4px_0px_#1e3a8a]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3 border-b-2 border-blue-900 pb-3">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Campus Micro-Gig Radar</h2>
-            <p className="text-xs text-slate-500">Live geo-tagged micro-tasks across college blocks</p>
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">
+              Interactive Section 3
+            </span>
+            <h2 className="text-base sm:text-lg font-black uppercase tracking-tight text-blue-950">
+              Campus Radar & Live Help Requests
+            </h2>
           </div>
+          <span className="text-xs font-bold px-2.5 py-1 border border-blue-900 bg-blue-50 text-blue-900 shadow-[2px_2px_0px_#1e3a8a]">
+            {gigs.length} Live Requests on Radar
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Wave circles toggle */}
-          <button
-            onClick={() => setShowWaves(!showWaves)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-              showWaves
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                : 'bg-slate-50 border-slate-200 text-slate-600'
-            }`}
-          >
-            <Radio className={`w-3.5 h-3.5 ${showWaves ? 'text-indigo-600 animate-pulse' : 'text-slate-400'}`} />
-            <span>Proximity Waves (500m / 1km)</span>
-          </button>
-
-          <span className="text-xs text-slate-400 hidden sm:inline">|</span>
-
-          {/* Gigs count badge */}
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>{gigs.length} Active Pins</span>
-          </div>
+        {/* 4 Community Area Selector */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <span className="text-[11px] font-black uppercase tracking-wider text-blue-900 shrink-0">
+            View Area:
+          </span>
+          {COMMUNITY_LOCATIONS.map((loc) => {
+            const isCurrent = currentUser?.location_name === loc.name;
+            return (
+              <button
+                key={loc.id}
+                onClick={() => handleFlyTo(loc)}
+                className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider border-2 border-blue-900 whitespace-nowrap transition-all ${
+                  isCurrent
+                    ? 'bg-blue-700 text-white shadow-[2px_2px_0px_#1e3a8a]'
+                    : 'bg-white text-blue-950 hover:bg-blue-50'
+                }`}
+              >
+                {loc.alias}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Campus Hotspots Walk Simulation Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <span className="text-xs font-semibold text-slate-400 whitespace-nowrap pl-1">
-          🚶‍♂️ Simulate Walking To:
-        </span>
-        {CAMPUS_HOTSPOTS.map((spot) => (
-          <button
-            key={spot.name}
-            onClick={() => handlePanToHotspot(spot)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap border transition-all flex items-center gap-1.5 ${
-              currentUser?.location_name === spot.name
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-            }`}
-          >
-            <MapPin className="w-3 h-3" />
-            {spot.name.split(' (')[0]}
-          </button>
-        ))}
-      </div>
-
-      {/* Map Container and Card Overlay */}
-      <div className="relative w-full h-[540px] rounded-3xl overflow-hidden border border-slate-200/80 shadow-md">
+      {/* Map Display & Selected Gig Card */}
+      <div className="relative border-2 border-blue-900 shadow-[6px_6px_0px_#1e3a8a] h-[520px] bg-slate-100 overflow-hidden">
         <div ref={mapContainerRef} className="w-full h-full" />
 
-        {/* Selected Gig Bottom Card Overlay */}
+        {/* Selected Gig Drawer Overlay */}
         {selectedGig && (
-          <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl z-20 transition-all animate-in fade-in slide-in-from-bottom-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">
-                  {selectedGig.category}
-                </span>
-                <h3 className="font-bold text-slate-900 text-sm mt-1">{selectedGig.title}</h3>
-                <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">📍 {selectedGig.location_name}</p>
-              </div>
+          <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-84 bg-white border-2 border-blue-900 shadow-[5px_5px_0px_#1e3a8a] p-4 z-20 animate-in fade-in">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 border border-blue-900 bg-blue-50 text-blue-900">
+                {selectedGig.category}
+              </span>
               <button
                 onClick={() => setSelectedGig(null)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-bold p-1"
+                className="text-xs font-black text-blue-900 hover:opacity-60"
               >
                 ✕
               </button>
             </div>
 
-            <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
-              <div>
-                <span className="text-base font-extrabold text-slate-900">₹{selectedGig.budget}</span>
-                <span className="text-[11px] text-slate-400 ml-1">({selectedGig.deadline})</span>
-              </div>
+            <h3 className="font-black text-sm uppercase leading-tight line-clamp-1 mb-1 text-blue-950">
+              {selectedGig.title}
+            </h3>
+            <p className="text-[11px] text-slate-600 line-clamp-2 mb-3">
+              {selectedGig.description}
+            </p>
 
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between pt-2 border-t-2 border-blue-900">
+              <div>
+                <span className="text-base font-black text-blue-950">₹{selectedGig.budget}</span>
+                <span className="block text-[9px] text-blue-700 font-bold">Earn ₹{selectedGig.worker_payout}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => onSelectGig(selectedGig)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                  className="px-2.5 py-1 text-xs font-black uppercase border border-blue-900 text-blue-950 hover:bg-blue-50"
                 >
-                  View Full
+                  Details
                 </button>
-                {currentUser?.id !== selectedGig.poster_id && selectedGig.status === 'ACTIVE' && (
+                {selectedGig.status === 'ACTIVE' && (
                   <button
                     onClick={() => onAcceptGig(selectedGig)}
-                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
+                    className="px-3 py-1 text-xs font-black uppercase bg-blue-700 text-white border border-blue-900 hover:bg-blue-800 shadow-[2px_2px_0px_#1e3a8a]"
                   >
-                    Accept Gig
+                    Accept
                   </button>
                 )}
               </div>

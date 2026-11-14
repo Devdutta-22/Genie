@@ -8,15 +8,7 @@ import {
   submitRating
 } from '../services/api';
 import {
-  Send,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  ExternalLink,
-  Star,
-  Check,
-  RefreshCw,
-  FileCheck
+  Send
 } from 'lucide-react';
 
 interface ActiveGigWorkspaceProps {
@@ -34,7 +26,6 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
   onSelectGig,
   onGigUpdated
 }) => {
-  // Filter gigs where currentUser is either poster or assigned worker
   const myGigs = allGigs.filter(
     (g) =>
       g.poster_id === currentUser?.id ||
@@ -51,9 +42,7 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
   const [isRatingOpen, setIsRatingOpen] = useState(false);
 
   // Rating state
-  const [commRating, setCommRating] = useState(5);
   const [qualRating, setQualRating] = useState(5);
-  const [relRating, setRelRating] = useState(5);
   const [ratingComment, setRatingComment] = useState('');
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
@@ -71,6 +60,29 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
   useEffect(() => {
     if (activeGig?.id) {
       loadMessages(activeGig.id);
+
+      // Connect to WebSocket for instant live chat synchronization
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'NEW_CHAT_MESSAGE' && payload.data?.gigId === activeGig.id) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === payload.data.message.id)) return prev;
+              return [...prev, payload.data.message];
+            });
+          }
+        } catch (e) {
+          console.error('Chat WS error:', e);
+        }
+      };
+
+      return () => {
+        ws.close();
+      };
     }
   }, [activeGig?.id]);
 
@@ -136,9 +148,9 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
       await submitRating(activeGig.id, {
         from_user_id: currentUser.id,
         to_user_id: targetUserId,
-        communication_rating: commRating,
+        communication_rating: qualRating,
         quality_rating: qualRating,
-        reliability_rating: relRating,
+        reliability_rating: qualRating,
         review: ratingComment
       });
       setIsRatingOpen(false);
@@ -153,11 +165,12 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
 
   if (!activeGig) {
     return (
-      <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs">
-        <Sparkles className="w-12 h-12 text-indigo-300 mx-auto mb-3" />
-        <h3 className="text-base font-bold text-slate-800">No Active Tasks Yet</h3>
-        <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-          Accept a gig from the Feed or post your own task to start collaborating with nearby students.
+      <div className="border-3 border-black bg-white p-12 text-center shadow-[6px_6px_0px_#000000]">
+        <h3 className="text-base font-black uppercase tracking-wider text-black">
+          No Active Tasks
+        </h3>
+        <p className="text-xs text-neutral-600 mt-1 max-w-sm mx-auto">
+          Accept a request from the Feed or post your own task to collaborate with nearby students.
         </p>
       </div>
     );
@@ -170,106 +183,95 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
   const currentStepIdx = STEPS.indexOf(activeGig.status);
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Active Gig Selector Pills if multiple tasks */}
+    <div className="space-y-6 pb-12 font-sans text-black">
+      {/* Switcher if multiple tasks */}
       {myGigs.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-xs font-semibold text-slate-400 whitespace-nowrap pl-1">
-            Switch Task:
+          <span className="text-[11px] font-black uppercase text-neutral-500 shrink-0">
+            Switch:
           </span>
           {myGigs.map((g) => (
             <button
               key={g.id}
               onClick={() => onSelectGig(g)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border transition-all ${
+              className={`px-3 py-1 text-xs font-black uppercase tracking-wider border-2 border-black whitespace-nowrap transition-all ${
                 g.id === activeGig.id
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                  ? 'bg-black text-white shadow-[2px_2px_0px_#000000]'
+                  : 'bg-white text-black hover:bg-neutral-100'
               }`}
             >
-              {g.title.slice(0, 24)}... (₹{g.budget})
+              {g.title.slice(0, 20)}... (₹{g.budget})
             </button>
           ))}
         </div>
       )}
 
       {/* Task Summary Banner */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="border-3 border-black bg-white p-5 sm:p-6 shadow-[6px_6px_0px_#000000] space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-black pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 border border-black bg-neutral-100">
                 {activeGig.category}
               </span>
-              <span className="text-xs font-bold text-slate-500">
-                {isPoster ? '👑 You are the Poster' : isWorker ? '🛠️ You are the Worker' : 'Auditor'}
+              <span className="text-xs font-black uppercase tracking-wider text-neutral-600">
+                {isPoster ? 'Role: Poster' : isWorker ? 'Role: Worker' : 'Viewer'}
               </span>
             </div>
-            <h1 className="text-xl font-bold text-slate-900 mt-1">{activeGig.title}</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Location: <b>{activeGig.location_name}</b> • Budget: <b>₹{activeGig.budget}</b> (Worker gets ₹{activeGig.worker_payout})
+            <h1 className="text-xl sm:text-2xl font-black uppercase mt-1 leading-tight">
+              {activeGig.title}
+            </h1>
+            <p className="text-xs text-neutral-600 font-bold mt-0.5">
+              Hub: {activeGig.location_name} • Total: ₹{activeGig.budget} (Payout: ₹{activeGig.worker_payout})
             </p>
           </div>
 
-          <div className="text-right">
-            <span className="text-xs font-extrabold px-3 py-1 rounded-xl bg-slate-900 text-white">
-              Status: {activeGig.status}
-            </span>
+          <div className="px-3 py-1.5 bg-black text-white text-xs font-black uppercase tracking-wider border-2 border-black">
+            {activeGig.status}
           </div>
         </div>
 
-        {/* Lifecycle Stepper */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 max-w-2xl mx-auto">
-            {STEPS.map((st, i) => {
-              const isDone = currentStepIdx > i;
-              const isCurrent = currentStepIdx === i;
-              return (
-                <div key={st} className="flex flex-col items-center gap-1.5 flex-1 text-center">
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      isDone
-                        ? 'bg-emerald-600 text-white'
-                        : isCurrent
-                        ? 'bg-indigo-600 text-white ring-4 ring-indigo-100'
-                        : 'bg-slate-100 text-slate-400'
-                    }`}
-                  >
-                    {isDone ? <Check className="w-4 h-4" /> : i + 1}
-                  </div>
-                  <span className={`text-[10px] ${isCurrent ? 'font-bold text-indigo-600' : 'text-slate-500'}`}>
-                    {st}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+        {/* Minimal Progress Steps */}
+        <div className="flex items-center justify-between gap-1 overflow-x-auto pt-1">
+          {STEPS.map((st, i) => {
+            const isDone = currentStepIdx > i;
+            const isCurrent = currentStepIdx === i;
+            return (
+              <div
+                key={st}
+                className={`flex-1 p-2 text-center border-2 border-black text-[10px] font-black uppercase tracking-wider transition-all ${
+                  isCurrent
+                    ? 'bg-black text-white shadow-[2px_2px_0px_#000000]'
+                    : isDone
+                    ? 'bg-neutral-100 text-black line-through'
+                    : 'bg-white text-neutral-400'
+                }`}
+              >
+                {st.replace('_', ' ')}
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Workspace Grid: In-app Chat (Left) & Actions/Deliverable (Right) */}
+      {/* Grid: Live Chat & Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Live Chat between Poster & Worker */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col h-[520px] overflow-hidden">
-          {/* Chat Header */}
-          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="text-sm font-bold text-slate-800">Task Chat & Coordination</h3>
-            </div>
-            <button
-              onClick={() => loadMessages(activeGig.id)}
-              className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
-            >
-              <RefreshCw className="w-3 h-3" /> Refresh
-            </button>
+        {/* Chat Box (2 Columns) */}
+        <div className="lg:col-span-2 border-3 border-black bg-white shadow-[6px_6px_0px_#000000] flex flex-col h-[520px]">
+          <div className="px-4 py-3 bg-neutral-50 border-b-2 border-black flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-wider">
+              Coordination Chat
+            </span>
+            <span className="text-[10px] font-bold text-neutral-500 uppercase">
+              Live WebSocket Sync
+            </span>
           </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 p-5 overflow-y-auto space-y-3 bg-slate-50/30">
+          {/* Messages scroll */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#fbfbfa]">
             {messages.length === 0 ? (
-              <div className="text-center py-16 text-slate-400 text-xs">
-                No messages yet. Say hi and align on the deliverables!
+              <div className="h-full flex items-center justify-center text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                No messages yet. Send a message to coordinate!
               </div>
             ) : (
               messages.map((m) => {
@@ -279,16 +281,14 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
                     key={m.id}
                     className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                   >
-                    <div className="flex items-center gap-1.5 mb-0.5 text-[10px] text-slate-400">
-                      <span>{m.sender_name || (isMe ? 'You' : 'Peer')}</span>
-                      <span>•</span>
-                      <span>{new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
+                    <span className="text-[9px] font-bold text-neutral-500 uppercase mb-0.5">
+                      {m.sender_name || (isMe ? 'You' : 'Peer')}
+                    </span>
                     <div
-                      className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
+                      className={`max-w-[80%] p-2.5 text-xs font-medium border-2 border-black ${
                         isMe
-                          ? 'bg-indigo-600 text-white rounded-tr-xs shadow-xs'
-                          : 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-xs shadow-2xs'
+                          ? 'bg-black text-white shadow-[2px_2px_0px_#000000]'
+                          : 'bg-white text-black shadow-[2px_2px_0px_#000000]'
                       }`}
                     >
                       {m.message}
@@ -300,39 +300,19 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick reply chips */}
-          <div className="px-4 py-2 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto scrollbar-none text-[11px]">
-            <span className="text-slate-400 font-semibold shrink-0">Quick:</span>
-            {[
-              "I'm starting on it now!",
-              "Draft link shared above.",
-              "Can we meet near Block B?",
-              "Task is done! Please approve."
-            ].map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                onClick={() => setNewMsg(chip)}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-colors"
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-
-          {/* Chat Input */}
-          <form onSubmit={handleSend} className="p-3 bg-white border-t border-slate-100 flex gap-2">
+          {/* Chat Form */}
+          <form onSubmit={handleSend} className="p-3 bg-white border-t-2 border-black flex gap-2">
             <input
               type="text"
-              placeholder="Type message to coordinate task..."
+              placeholder="Type message to coordinate..."
               value={newMsg}
               onChange={(e) => setNewMsg(e.target.value)}
-              className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+              className="flex-1 px-3 py-2 bg-neutral-50 border-2 border-black text-xs font-bold focus:outline-none"
             />
             <button
               type="submit"
               disabled={!newMsg.trim()}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              className="px-4 py-2 bg-black text-white text-xs font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_#000000] disabled:opacity-50 flex items-center gap-1"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Send</span>
@@ -340,22 +320,21 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
           </form>
         </div>
 
-        {/* Right Column: Task Actions, Submission & Payments */}
-        <div className="space-y-5">
-          {/* Worker Actions Box */}
+        {/* Action Panel (1 Column) */}
+        <div className="space-y-4">
+          {/* Worker Actions */}
           {isWorker && activeGig.status !== 'COMPLETED' && activeGig.status !== 'CLOSED' && (
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-4">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                <FileCheck className="w-4 h-4 text-indigo-600" />
-                Worker Action Center
+            <div className="border-3 border-black bg-white p-4 shadow-[4px_4px_0px_#000000] space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-wider border-b-2 border-black pb-2">
+                Worker Actions
               </h3>
 
               {activeGig.status === 'ASSIGNED' && (
                 <button
                   onClick={() => handleStatusChange('IN_PROGRESS')}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                  className="w-full py-2.5 bg-black text-white text-xs font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px]"
                 >
-                  Mark Task as Started (In Progress)
+                  Mark as In Progress
                 </button>
               )}
 
@@ -364,39 +343,38 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
                   {!isSubmittingWork ? (
                     <button
                       onClick={() => setIsSubmittingWork(true)}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                      className="w-full py-2.5 bg-white text-black text-xs font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_#000000] hover:bg-neutral-100"
                     >
-                      Submit Completed Deliverable
+                      Submit Deliverable
                     </button>
                   ) : (
-                    <div className="space-y-3 p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200">
-                      <h4 className="text-xs font-bold text-emerald-900">Submit Deliverable</h4>
+                    <div className="space-y-2 p-3 border-2 border-black bg-neutral-50">
                       <input
                         type="text"
-                        placeholder="Link (Google Drive, Canva, GitHub, etc.)"
+                        placeholder="Link (Drive, Canva, Github...)"
                         value={submittingLink}
                         onChange={(e) => setSubmittingLink(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs"
+                        className="w-full px-2.5 py-1.5 text-xs font-bold bg-white border-2 border-black focus:outline-none"
                       />
                       <textarea
                         rows={2}
-                        placeholder="Notes or handover instructions..."
+                        placeholder="Notes or handoff info..."
                         value={submittingNotes}
                         onChange={(e) => setSubmittingNotes(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs"
+                        className="w-full px-2.5 py-1.5 text-xs font-medium bg-white border-2 border-black focus:outline-none"
                       />
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => handleStatusChange('SUBMITTED')}
-                          className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl"
+                          className="flex-1 py-1.5 bg-black text-white text-xs font-black uppercase tracking-wider border border-black"
                         >
-                          Confirm Submission
+                          Confirm
                         </button>
                         <button
                           type="button"
                           onClick={() => setIsSubmittingWork(false)}
-                          className="px-3 py-2 bg-white text-slate-600 text-xs font-semibold rounded-xl border border-slate-200"
+                          className="px-2.5 py-1.5 bg-white text-black text-xs font-bold border border-black"
                         >
                           Cancel
                         </button>
@@ -408,200 +386,89 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
             </div>
           )}
 
-          {/* Submission Review Box (if submitted) */}
-          {activeGig.status === 'SUBMITTED' && (
-            <div className="bg-white rounded-3xl p-5 border border-indigo-200 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                  Deliverable Submitted
-                </span>
-                <Clock className="w-4 h-4 text-indigo-500" />
-              </div>
-
+          {/* Poster Review & Approval */}
+          {activeGig.status === 'SUBMITTED' && isPoster && (
+            <div className="border-3 border-black bg-white p-4 shadow-[4px_4px_0px_#000000] space-y-3">
+              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 bg-black text-white">
+                Deliverable Ready
+              </span>
               {activeGig.submission_link && (
-                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                  <span className="font-semibold text-slate-500 block text-[10px]">Deliverable Link:</span>
-                  <a
-                    href={activeGig.submission_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-indigo-600 hover:underline font-bold flex items-center gap-1 mt-0.5 truncate"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                    {activeGig.submission_link}
-                  </a>
-                </div>
+                <a
+                  href={activeGig.submission_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block p-2 border-2 border-black bg-neutral-50 text-xs font-bold hover:underline"
+                >
+                  View Link: {activeGig.submission_link}
+                </a>
               )}
-
               {activeGig.submission_notes && (
-                <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                  {activeGig.submission_notes}
+                <p className="text-xs text-neutral-700 font-medium">
+                  "{activeGig.submission_notes}"
                 </p>
               )}
-
-              {isPoster && (
-                <div className="pt-2 space-y-2">
-                  <button
-                    onClick={handleApprove}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    Approve Work & Release ₹{activeGig.worker_payout}
-                  </button>
-                  <button
-                    onClick={() => handleStatusChange('IN_PROGRESS')}
-                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
-                  >
-                    Request Changes
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={handleApprove}
+                className="w-full py-2.5 bg-black text-white text-xs font-black uppercase tracking-wider border-2 border-black shadow-[3px_3px_0px_#000000]"
+              >
+                Approve & Release ₹{activeGig.worker_payout}
+              </button>
             </div>
           )}
 
-          {/* Payment Receipt Banner if completed */}
-          {(activeGig.status === 'COMPLETED' || activeGig.status === 'CLOSED') && (
-            <div className="bg-emerald-50 rounded-3xl p-5 border border-emerald-200 space-y-3">
-              <div className="flex items-center gap-2 text-emerald-800">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <h4 className="font-bold text-sm">Escrow Payment Released!</h4>
-              </div>
-              <div className="p-3 bg-white rounded-2xl border border-emerald-100 text-xs space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Task Budget:</span>
-                  <b className="text-slate-800">₹{activeGig.budget}</b>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Platform Commission (5%):</span>
-                  <b className="text-slate-800">₹{activeGig.platform_fee}</b>
-                </div>
-                <div className="flex justify-between border-t border-slate-100 pt-1 text-emerald-700 font-extrabold">
-                  <span>Student Worker Payout:</span>
-                  <span>₹{activeGig.worker_payout}</span>
-                </div>
-              </div>
-
-              {activeGig.status !== 'CLOSED' && (
+          {/* Rating Prompt */}
+          {activeGig.status === 'COMPLETED' && (
+            <div className="border-3 border-black bg-white p-4 shadow-[4px_4px_0px_#000000] space-y-3">
+              <h4 className="text-xs font-black uppercase tracking-wider">
+                Task Completed!
+              </h4>
+              <p className="text-xs text-neutral-600">
+                Mutual review helps verified students build campus reputation.
+              </p>
+              {!isRatingOpen ? (
                 <button
                   onClick={() => setIsRatingOpen(true)}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                  className="w-full py-2 bg-black text-white text-xs font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_#000000]"
                 >
-                  <Star className="w-3.5 h-3.5 text-yellow-300" />
-                  Leave Peer Rating & Review
+                  Leave Rating
                 </button>
+              ) : (
+                <form onSubmit={handleSubmitRating} className="space-y-3 border-t-2 border-black pt-3">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span>Quality (1-5):</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={5}
+                      value={qualRating}
+                      onChange={(e) => setQualRating(Number(e.target.value))}
+                      className="w-12 px-1.5 py-0.5 border-2 border-black text-center font-black"
+                    />
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="Short review comment..."
+                    value={ratingComment}
+                    onChange={(e) => setRatingComment(e.target.value)}
+                    className="w-full px-2 py-1 text-xs border-2 border-black focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={ratingSubmitting}
+                    className="w-full py-2 bg-black text-white text-xs font-black uppercase tracking-wider border border-black disabled:opacity-50"
+                  >
+                    {ratingSubmitting ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </form>
               )}
             </div>
           )}
 
-          {/* Rating Modal */}
-          {isRatingOpen && (
-            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-                <h3 className="text-base font-bold text-slate-900">
-                  Rate Peer & Update Campus Reputation
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Your feedback helps maintain a trusted, reliable campus community.
-                </p>
-
-                <form onSubmit={handleSubmitRating} className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Communication (1 - 5 Stars)
-                    </label>
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setCommRating(s)}
-                          className={`flex-1 py-1.5 rounded-xl border text-xs font-bold ${
-                            commRating >= s
-                              ? 'bg-amber-50 border-amber-300 text-amber-700'
-                              : 'bg-slate-50 border-slate-200 text-slate-400'
-                          }`}
-                        >
-                          ★{s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Work Quality (1 - 5 Stars)
-                    </label>
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setQualRating(s)}
-                          className={`flex-1 py-1.5 rounded-xl border text-xs font-bold ${
-                            qualRating >= s
-                              ? 'bg-amber-50 border-amber-300 text-amber-700'
-                              : 'bg-slate-50 border-slate-200 text-slate-400'
-                          }`}
-                        >
-                          ★{s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Reliability & Punctuality (1 - 5 Stars)
-                    </label>
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setRelRating(s)}
-                          className={`flex-1 py-1.5 rounded-xl border text-xs font-bold ${
-                            relRating >= s
-                              ? 'bg-amber-50 border-amber-300 text-amber-700'
-                              : 'bg-slate-50 border-slate-200 text-slate-400'
-                          }`}
-                        >
-                          ★{s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Comment / Review
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="e.g. Delivered on time and followed instructions perfectly!"
-                      value={ratingComment}
-                      onChange={(e) => setRatingComment(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-                    />
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      type="submit"
-                      disabled={ratingSubmitting}
-                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold"
-                    >
-                      {ratingSubmitting ? 'Recording...' : 'Submit Rating'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsRatingOpen(false)}
-                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
+          {activeGig.status === 'CLOSED' && (
+            <div className="border-2 border-black bg-neutral-100 p-4 text-center">
+              <span className="text-xs font-black uppercase tracking-wider">
+                ✓ Task Closed & Verified
+              </span>
             </div>
           )}
         </div>

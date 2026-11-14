@@ -1,23 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { User } from '../types';
 import {
-  Compass,
-  MapPin,
-  PlusCircle,
-  Briefcase,
-  Cpu,
-  UserCheck,
+  Home,
+  Flame,
+  Map,
+  Plus,
   Bell,
-  Sparkles,
-  ChevronDown
+  ChevronDown,
+  X,
+  Briefcase
 } from 'lucide-react';
 
 interface NavbarProps {
   currentUser: User | null;
   allUsers: User[];
   onSelectUser: (user: User) => void;
-  activeTab: 'feed' | 'map' | 'post' | 'active' | 'matching' | 'profile';
-  setActiveTab: (tab: 'feed' | 'map' | 'post' | 'active' | 'matching' | 'profile') => void;
+  activeTab: 'feed' | 'map' | 'active' | 'profile';
+  setActiveTab: (tab: 'feed' | 'map' | 'active' | 'profile') => void;
   unreadCount: number;
   onOpenNotifications: () => void;
   onOpenNewGigModal: () => void;
@@ -33,226 +32,246 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNotifications,
   onOpenNewGigModal
 }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand Logo & Slogan */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('feed')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-200">
-              <Sparkles className="w-5 h-5 text-yellow-300" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xl tracking-tight text-slate-900">Gully Gigs</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  Campus Live
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 hidden sm:block">Hyper-Local Micro-Gig Marketplace</p>
-            </div>
-          </div>
-
-          {/* Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/80">
-            <button
+    <>
+      {/* Top Brutalist Navbar (Royal Blue & Pure White) */}
+      <header className="sticky top-0 z-40 bg-white border-b-2 border-blue-900 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Brand Logo - Royal Blue Brutalism */}
+            <div
+              className="flex items-center gap-2 cursor-pointer select-none group"
               onClick={() => setActiveTab('feed')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === 'feed'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
             >
-              <Compass className="w-4 h-4" />
-              Feed
-            </button>
-
-            <button
-              onClick={() => setActiveTab('map')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === 'map'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <MapPin className="w-4 h-4 text-emerald-500" />
-              Campus Map
-            </button>
-
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === 'active'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Briefcase className="w-4 h-4 text-amber-500" />
-              My Tasks
-            </button>
-
-            <button
-              onClick={() => setActiveTab('matching')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === 'matching'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Inspect algorithm, scoring weights, and wave escalation"
-            >
-              <Cpu className="w-4 h-4 text-purple-600" />
-              Matching Engine
-            </button>
-
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === 'profile'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <UserCheck className="w-4 h-4 text-sky-500" />
-              Reputation
-            </button>
-          </nav>
-
-          {/* Right Actions & Persona Switcher */}
-          <div className="flex items-center gap-3">
-            {/* Post Gig Button */}
-            <button
-              onClick={onOpenNewGigModal}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm shadow-indigo-300 transition-all active:scale-95"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Post Gig</span>
-            </button>
-
-            {/* Notification Bell */}
-            <button
-              onClick={onOpenNotifications}
-              className="relative p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
-              title="Notifications & Proximity Waves"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold animate-pulse">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-
-            {/* Active Student Switcher Dropdown */}
-            {currentUser && (
-              <div className="relative group">
-                <div className="flex items-center gap-2 p-1.5 pr-2.5 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-indigo-300 hover:bg-indigo-50/40 cursor-pointer transition-all">
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    className="w-7 h-7 rounded-lg object-cover ring-2 ring-indigo-500/20"
-                  />
-                  <div className="text-left hidden lg:block">
-                    <p className="text-xs font-bold text-slate-800 leading-tight flex items-center gap-1">
-                      {currentUser.name}
-                      <span className="text-[10px] text-amber-600 font-semibold">★{currentUser.rating}</span>
-                    </p>
-                    <p className="text-[10px] text-slate-500 truncate max-w-[110px]">{currentUser.course}</p>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-transform group-hover:rotate-180" />
-                </div>
-
-                {/* Dropdown Menu for quick role switching */}
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 hidden group-hover:block transition-all z-50">
-                  <div className="px-3 py-2 border-b border-slate-100">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Switch Active Student Persona
-                    </p>
-                    <p className="text-xs text-slate-600">
-                      Test both <b>Poster</b> & <b>Worker</b> perspectives instantly
-                    </p>
-                  </div>
-
-                  <div className="max-h-64 overflow-y-auto py-1 space-y-1">
-                    {allUsers.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() => onSelectUser(u)}
-                        className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-3 transition-colors ${
-                          u.id === currentUser.id
-                            ? 'bg-indigo-50 text-indigo-900 border border-indigo-200/60'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <img src={u.avatar} alt={u.name} className="w-8 h-8 rounded-lg object-cover" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-bold truncate">{u.name}</p>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
-                              ★{u.rating}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 truncate">
-                            {u.id === 'usr_aman' ? '🎯 Gig Poster (ME 3rd Yr)' : `🛠️ Worker (${u.course})`}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+              <div className="w-9 h-9 bg-blue-700 text-white border-2 border-blue-900 shadow-[2px_2px_0px_#1e3a8a] flex items-center justify-center font-black text-sm tracking-tighter group-hover:bg-blue-800 transition-colors">
+                GG
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-lg sm:text-xl tracking-tight uppercase leading-none text-blue-950">
+                    Gully Gigs
+                  </span>
+                  <span className="text-[10px] font-black uppercase px-1.5 py-0.5 border border-blue-900 bg-blue-50 text-blue-800">
+                    Campus Live
+                  </span>
                 </div>
               </div>
-            )}
+            </div>
+
+            {/* PWA-Style Main Navigation Icons (Fixed in Header on Desktop) */}
+            <nav className="hidden md:flex items-center gap-2 bg-blue-50/70 p-1 border-2 border-blue-900 shadow-[2px_2px_0px_#1e3a8a]">
+              {/* 1 - Home */}
+              <button
+                onClick={() => setActiveTab('feed')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercase tracking-wider border-2 transition-all ${
+                  activeTab === 'feed'
+                    ? 'bg-blue-700 text-white border-blue-900 shadow-[2px_2px_0px_#1e3a8a]'
+                    : 'bg-white text-blue-950 border-transparent hover:border-blue-900 hover:bg-white'
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                <span>1. Home</span>
+              </button>
+
+              {/* 2 - Active Gigs Around You */}
+              <button
+                onClick={() => setActiveTab('feed')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercase tracking-wider border-2 transition-all ${
+                  activeTab === 'feed'
+                    ? 'bg-blue-700 text-white border-blue-900 shadow-[2px_2px_0px_#1e3a8a]'
+                    : 'bg-white text-blue-950 border-transparent hover:border-blue-900 hover:bg-white'
+                }`}
+              >
+                <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
+                <span>2. Active Gigs</span>
+              </button>
+
+              {/* 3 - Map View */}
+              <button
+                onClick={() => setActiveTab('map')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercase tracking-wider border-2 transition-all ${
+                  activeTab === 'map'
+                    ? 'bg-blue-700 text-white border-blue-900 shadow-[2px_2px_0px_#1e3a8a]'
+                    : 'bg-white text-blue-950 border-transparent hover:border-blue-900 hover:bg-white'
+                }`}
+              >
+                <Map className="w-4 h-4" />
+                <span>3. Live Map</span>
+              </button>
+
+              {/* Secondary: My Tasks Workspace */}
+              <button
+                onClick={() => setActiveTab('active')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercase tracking-wider border-2 transition-all ${
+                  activeTab === 'active'
+                    ? 'bg-blue-900 text-white border-blue-900 shadow-[2px_2px_0px_#1e3a8a]'
+                    : 'bg-white text-blue-950 border-transparent hover:border-blue-900'
+                }`}
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                <span>My Tasks</span>
+              </button>
+            </nav>
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Post Gig CTA Button */}
+              <button
+                onClick={onOpenNewGigModal}
+                className="px-3.5 py-2 bg-blue-700 text-white text-xs font-black uppercase tracking-wider border-2 border-blue-900 shadow-[3px_3px_0px_#1e3a8a] hover:bg-blue-800 hover:translate-x-[-1px] hover:translate-y-[-1px] active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span className="hidden sm:inline">Post Request</span>
+                <span className="sm:hidden">Post</span>
+              </button>
+
+              {/* Notification Bell */}
+              <button
+                onClick={onOpenNotifications}
+                className="relative p-2 border-2 border-blue-900 bg-white hover:bg-blue-50 transition-colors shadow-[2px_2px_0px_#1e3a8a]"
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4 text-blue-950" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-4 h-4 px-1 bg-red-600 text-white text-[9px] font-black border border-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Persona Switcher Dropdown */}
+              {currentUser && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center gap-2 p-1.5 border-2 border-blue-900 bg-white hover:bg-blue-50 transition-colors shadow-[2px_2px_0px_#1e3a8a]"
+                  >
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-6 h-6 border border-blue-900 object-cover"
+                    />
+                    <span className="text-xs font-black text-blue-950 hidden sm:inline max-w-[90px] truncate">
+                      {currentUser.name.split(' ')[0]}
+                    </span>
+                    <ChevronDown className="w-3 h-3 text-blue-900" />
+                  </button>
+
+                  {isDropdownOpen && (
+                    <div className="absolute right-0 mt-1 w-64 bg-white border-2 border-blue-900 shadow-[4px_4px_0px_#1e3a8a] p-2 z-50 animate-in fade-in">
+                      <div className="px-2 py-1.5 border-b-2 border-blue-900 mb-1 flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
+                          Switch Student Profile
+                        </span>
+                        <button
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="text-xs font-black text-blue-900 hover:opacity-60"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        {allUsers.map((u) => (
+                          <button
+                            key={u.id}
+                            onClick={() => {
+                              onSelectUser(u);
+                              setIsDropdownOpen(false);
+                            }}
+                            className={`w-full text-left p-2 border transition-all flex items-center gap-2 text-xs font-bold ${
+                              u.id === currentUser.id
+                                ? 'bg-blue-700 text-white border-blue-900'
+                                : 'bg-white text-slate-900 border-transparent hover:border-blue-900 hover:bg-blue-50'
+                            }`}
+                          >
+                            <img
+                              src={u.avatar}
+                              alt={u.name}
+                              className="w-6 h-6 border border-current object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-black leading-none">{u.name}</p>
+                              <p className="text-[10px] opacity-75 truncate pt-0.5">{u.location_name}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Navigation bar */}
-        <div className="flex md:hidden items-center justify-around py-2 border-t border-slate-100">
-          <button
-            onClick={() => setActiveTab('feed')}
-            className={`flex flex-col items-center text-xs font-semibold ${
-              activeTab === 'feed' ? 'text-indigo-600' : 'text-slate-500'
-            }`}
-          >
-            <Compass className="w-4 h-4" />
-            <span>Feed</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('map')}
-            className={`flex flex-col items-center text-xs font-semibold ${
-              activeTab === 'map' ? 'text-indigo-600' : 'text-slate-500'
-            }`}
-          >
-            <MapPin className="w-4 h-4" />
-            <span>Map</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('active')}
-            className={`flex flex-col items-center text-xs font-semibold ${
-              activeTab === 'active' ? 'text-indigo-600' : 'text-slate-500'
-            }`}
-          >
-            <Briefcase className="w-4 h-4" />
-            <span>Tasks</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('matching')}
-            className={`flex flex-col items-center text-xs font-semibold ${
-              activeTab === 'matching' ? 'text-indigo-600' : 'text-slate-500'
-            }`}
-          >
-            <Cpu className="w-4 h-4" />
-            <span>Algorithm</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center text-xs font-semibold ${
-              activeTab === 'profile' ? 'text-indigo-600' : 'text-slate-500'
-            }`}
-          >
-            <UserCheck className="w-4 h-4" />
-            <span>Profile</span>
-          </button>
-        </div>
-      </div>
-    </header>
+      {/* Mobile Fixed PWA Navigation Bar at Bottom */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-blue-900 shadow-[0_-4px_10px_rgba(30,58,138,0.15)] flex items-center justify-around py-1.5 px-2">
+        {/* Tab 1: Home */}
+        <button
+          onClick={() => setActiveTab('feed')}
+          className={`flex-1 py-1 px-1 flex flex-col items-center justify-center gap-0.5 transition-all ${
+            activeTab === 'feed'
+              ? 'text-blue-700 font-black'
+              : 'text-slate-600 font-bold hover:text-blue-900'
+          }`}
+        >
+          <Home className={`w-5 h-5 ${activeTab === 'feed' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[10px] uppercase tracking-tight">1. Home</span>
+        </button>
+
+        {/* Tab 2: Active Gigs */}
+        <button
+          onClick={() => setActiveTab('feed')}
+          className={`flex-1 py-1 px-1 flex flex-col items-center justify-center gap-0.5 transition-all ${
+            activeTab === 'feed'
+              ? 'text-blue-700 font-black'
+              : 'text-slate-600 font-bold hover:text-blue-900'
+          }`}
+        >
+          <Flame className={`w-5 h-5 text-amber-500 fill-amber-500 ${activeTab === 'feed' ? 'scale-110' : ''}`} />
+          <span className="text-[10px] uppercase tracking-tight">2. Gigs</span>
+        </button>
+
+        {/* Post Quick Icon */}
+        <button
+          onClick={onOpenNewGigModal}
+          className="w-10 h-10 -mt-4 bg-blue-700 text-white rounded-none border-2 border-blue-950 shadow-[2px_2px_0px_#1e3a8a] flex items-center justify-center active:scale-95 transition-transform"
+          title="Post a Gig"
+        >
+          <Plus className="w-5 h-5 stroke-[3]" />
+        </button>
+
+        {/* Tab 3: Live Map */}
+        <button
+          onClick={() => setActiveTab('map')}
+          className={`flex-1 py-1 px-1 flex flex-col items-center justify-center gap-0.5 transition-all ${
+            activeTab === 'map'
+              ? 'text-blue-700 font-black'
+              : 'text-slate-600 font-bold hover:text-blue-900'
+          }`}
+        >
+          <Map className={`w-5 h-5 ${activeTab === 'map' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[10px] uppercase tracking-tight">3. Map</span>
+        </button>
+
+        {/* Tab: Tasks */}
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`flex-1 py-1 px-1 flex flex-col items-center justify-center gap-0.5 transition-all ${
+            activeTab === 'active'
+              ? 'text-blue-700 font-black'
+              : 'text-slate-600 font-bold hover:text-blue-900'
+          }`}
+        >
+          <Briefcase className={`w-5 h-5 ${activeTab === 'active' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[10px] uppercase tracking-tight">Tasks</span>
+        </button>
+      </nav>
+    </>
   );
 };
