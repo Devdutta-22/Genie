@@ -2,6 +2,53 @@ import type { User, Gig, MatchingResult, ChatMessage, NotificationItem } from '.
 
 const API_BASE = '/api';
 
+export const getAuthToken = () => localStorage.getItem('gully_auth_token');
+export const setAuthToken = (token: string) => localStorage.setItem('gully_auth_token', token);
+export const clearAuthToken = () => localStorage.removeItem('gully_auth_token');
+
+export async function loginUser(credentials: { email: string; password: string }): Promise<{ token: string; user: User }> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to log in');
+  if (data.token) setAuthToken(data.token);
+  return data;
+}
+
+export async function registerUser(formData: FormData): Promise<{ token: string; user: User; message: string }> {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    body: formData // Multer handles multipart boundary automatically
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create account');
+  if (data.token) setAuthToken(data.token);
+  return data;
+}
+
+export async function fetchCurrentUser(): Promise<User | null> {
+  const token = getAuthToken();
+  if (!token) return null;
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!res.ok) {
+    clearAuthToken();
+    return null;
+  }
+  const data = await res.json();
+  return data.user;
+}
+
+export async function fetchDemoUsers(): Promise<User[]> {
+  const res = await fetch(`${API_BASE}/auth/demo-users`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export async function fetchUsers(): Promise<User[]> {
   const res = await fetch(`${API_BASE}/users`);
   if (!res.ok) throw new Error('Failed to fetch users');

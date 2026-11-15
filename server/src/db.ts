@@ -35,7 +35,13 @@ export function initDatabase() {
       response_rate REAL DEFAULT 0.95,
       availability TEXT NOT NULL,
       is_active INTEGER DEFAULT 1,
-      bio TEXT
+      bio TEXT,
+      password_hash TEXT,
+      student_id TEXT,
+      id_card_url TEXT,
+      verification_status TEXT DEFAULT 'PENDING',
+      role TEXT DEFAULT 'STUDENT',
+      created_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS skills (
@@ -120,6 +126,39 @@ export function initDatabase() {
       FOREIGN KEY (gig_id) REFERENCES gigs(id) ON DELETE CASCADE
     );
   `);
+
+  // Auto-migrate users table with auth and verification columns
+  const userCols = db.prepare('PRAGMA table_info(users)').all() as any[];
+  const colNames = new Set(userCols.map((c: any) => c.name));
+
+  if (!colNames.has('password_hash')) {
+    db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT;');
+  }
+  if (!colNames.has('student_id')) {
+    db.exec('ALTER TABLE users ADD COLUMN student_id TEXT;');
+  }
+  if (!colNames.has('id_card_url')) {
+    db.exec('ALTER TABLE users ADD COLUMN id_card_url TEXT;');
+  }
+  if (!colNames.has('verification_status')) {
+    db.exec("ALTER TABLE users ADD COLUMN verification_status TEXT DEFAULT 'PENDING';");
+  }
+  if (!colNames.has('role')) {
+    db.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'STUDENT';");
+  }
+  if (!colNames.has('created_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN created_at TEXT;');
+  }
+
+  // Ensure default demo password for any existing users without a password
+  const defaultHash = '$2b$10$5nQQu66sWVEhidT1H/73YeBTAr6jJs1unKGaqAZWJnWGOjyQgLIwK'; // 'password123'
+  db.prepare(`
+    UPDATE users 
+    SET password_hash = ?, 
+        verification_status = COALESCE(verification_status, 'VERIFIED'),
+        role = COALESCE(role, 'STUDENT')
+    WHERE password_hash IS NULL
+  `).run(defaultHash);
 
   // Seed default data if users table is empty
   const countStmt = db.prepare('SELECT COUNT(*) as count FROM users');

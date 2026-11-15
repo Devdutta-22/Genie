@@ -8,13 +8,17 @@ import {
   Bell,
   ChevronDown,
   X,
-  Briefcase
+  Briefcase,
+  LogOut,
+  ShieldCheck,
+  Clock
 } from 'lucide-react';
 
 interface NavbarProps {
   currentUser: User | null;
   allUsers: User[];
   onSelectUser: (user: User) => void;
+  onLogout?: () => void;
   activeTab: 'feed' | 'map' | 'active' | 'profile';
   setActiveTab: (tab: 'feed' | 'map' | 'active' | 'profile') => void;
   unreadCount: number;
@@ -26,6 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   allUsers,
   onSelectUser,
+  onLogout,
   activeTab,
   setActiveTab,
   unreadCount,
@@ -161,20 +166,53 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute right-0 mt-1 w-64 bg-white border-2 border-blue-900 shadow-[4px_4px_0px_#1e3a8a] p-2 z-50 animate-in fade-in">
-                      <div className="px-2 py-1.5 border-b-2 border-blue-900 mb-1 flex items-center justify-between">
+                    <div className="absolute right-0 mt-1 w-72 bg-white border-2 border-blue-900 shadow-[4px_4px_0px_#1e3a8a] p-2 z-50 animate-in fade-in">
+                      {/* Current Account Details & Verification Badge */}
+                      <div className="p-2 bg-blue-50/80 border-2 border-blue-900 mb-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
+                            Logged In Student
+                          </span>
+                          <button
+                            onClick={() => setIsDropdownOpen(false)}
+                            className="text-xs font-black text-blue-900 hover:opacity-60"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="font-black text-xs text-blue-950 mt-1 truncate">
+                          {currentUser.name}
+                        </div>
+                        <div className="text-[10px] text-slate-600 truncate">
+                          {currentUser.email}
+                        </div>
+                        <div className="mt-2 flex items-center gap-1.5">
+                          {currentUser.verification_status === 'VERIFIED' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-600 text-[10px] font-bold">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              ID Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-600 text-[10px] font-bold">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              ID Pending Review
+                            </span>
+                          )}
+                          {currentUser.student_id && (
+                            <span className="text-[10px] font-mono text-slate-500">
+                              #{currentUser.student_id}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="px-2 py-1 border-b-2 border-blue-900 mb-1">
                         <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
                           Switch Student Profile
                         </span>
-                        <button
-                          onClick={() => setIsDropdownOpen(false)}
-                          className="text-xs font-black text-blue-900 hover:opacity-60"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
                         {allUsers.map((u) => (
                           <button
                             key={u.id}
@@ -200,6 +238,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </button>
                         ))}
                       </div>
+
+                      {/* Log Out CTA */}
+                      {onLogout && (
+                        <div className="pt-2 mt-2 border-t-2 border-blue-900">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              onLogout();
+                            }}
+                            className="w-full py-1.5 px-2 bg-red-50 hover:bg-red-100 text-red-700 border-2 border-red-700 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                            <span>Sign Out / Switch Account</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

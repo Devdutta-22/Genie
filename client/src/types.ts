@@ -18,6 +18,11 @@ export interface User {
   availability: string;
   is_active: number;
   bio: string;
+  student_id?: string;
+  id_card_url?: string;
+  verification_status?: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  role?: 'STUDENT' | 'ADMIN';
+  created_at?: string;
   skills?: { skill: string; level: string }[];
   reviews?: RatingReview[];
 }

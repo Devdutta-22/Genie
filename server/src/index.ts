@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import http from 'node:http';
+import path from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { initDatabase } from './db.ts';
+import { authRouter } from './routes/auth.ts';
 import { usersRouter } from './routes/users.ts';
 import { gigsRouter } from './routes/gigs.ts';
 import { messagesRouter } from './routes/messages.ts';
@@ -17,6 +19,7 @@ initDatabase();
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.resolve('server/uploads')));
 
 // Create HTTP server & WebSocket server
 const server = http.createServer(app);
@@ -47,6 +50,7 @@ export function broadcastWsEvent(type: string, data: any) {
 }
 
 // Register API routes
+app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/gigs', gigsRouter);
 app.use('/api/gigs', messagesRouter);

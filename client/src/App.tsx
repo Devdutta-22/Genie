@@ -5,7 +5,9 @@ import {
   fetchGigs,
   fetchNotifications,
   markNotificationRead,
-  updateUserLocation
+  updateUserLocation,
+  fetchCurrentUser,
+  clearAuthToken
 } from './services/api';
 import { Navbar } from './components/Navbar';
 import { GigFeed } from './components/GigFeed';
@@ -15,10 +17,12 @@ import { GigDetailModal } from './components/GigDetailModal';
 import { ActiveGigWorkspace } from './components/ActiveGigWorkspace';
 import { ProfileView } from './components/ProfileView';
 import { NotificationDrawer } from './components/NotificationDrawer';
+import { AuthScreen } from './components/AuthScreen';
 
 export function App() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [activeTab, setActiveTab] = useState<'feed' | 'map' | 'active' | 'profile'>('feed');
@@ -36,18 +40,32 @@ export function App() {
   // Live Toast for new requests
   const [liveToast, setLiveToast] = useState<{ title: string; message: string } | null>(null);
 
-  // Load Users & Initial Current User
+  // Check existing auth token or session on load
   useEffect(() => {
-    fetchUsers()
-      .then((users) => {
-        setAllUsers(users);
-        if (users.length > 0) {
-          const rahul = users.find((u) => u.id === 'usr_rahul') || users[0];
-          setCurrentUser(rahul);
+    fetchCurrentUser()
+      .then((user) => {
+        if (user) {
+          setCurrentUser(user);
         }
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error('Session verify error:', err);
+      })
+      .finally(() => {
+        setIsAuthChecking(false);
+        fetchUsers().then(setAllUsers).catch(console.error);
+      });
   }, []);
+
+  const handleLogout = () => {
+    clearAuthToken();
+    setCurrentUser(null);
+  };
+
+  const handleAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+    fetchUsers().then(setAllUsers).catch(console.error);
+  };
 
   // Load Gigs when currentUser changes
   const reloadGigs = () => {
@@ -157,6 +175,21 @@ export function App() {
 
   const unreadNotificationsCount = notifications.filter((n) => n.status === 'UNREAD').length;
 
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-100">
+        <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-xs font-semibold tracking-wider text-slate-400 uppercase">
+          Verifying Campus Session...
+        </p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-blue-700 selection:text-white">
       {/* Top Brutalist Navbar with PWA tabs */}
@@ -167,6 +200,7 @@ export function App() {
           setCurrentUser(u);
           reloadGigs();
         }}
+        onLogout={handleLogout}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         unreadCount={unreadNotificationsCount}
