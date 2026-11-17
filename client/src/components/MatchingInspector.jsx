@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { Gig, MatchingResult } from '../types';
-import { fetchGigMatching, notifyWave } from '../services/api';
+import { fetchGigMatching, notifyWave } from '../services/api.js';
 import {
   Cpu,
   Sparkles,
@@ -14,13 +13,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-interface MatchingInspectorProps {
-  selectedGig: Gig | null;
-  allGigs: Gig[];
-  onSelectGig: (gig: Gig) => void;
-}
 
-export const MatchingInspector: React.FC<MatchingInspectorProps> = ({
+
+export const MatchingInspector = ({
   selectedGig,
   allGigs,
   onSelectGig
@@ -28,13 +23,13 @@ export const MatchingInspector: React.FC<MatchingInspectorProps> = ({
   const activeGigs = allGigs.filter((g) => g.status === 'ACTIVE' || g.status === 'NOTIFIED' || g.status === 'MATCHING');
   const currentGig = selectedGig || activeGigs[0] || allGigs[0];
 
-  const [matchingData, setMatchingData] = useState<MatchingResult | null>(null);
+  const [matchingData, setMatchingData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [escalatingWave, setEscalatingWave] = useState<number | null>(null);
-  const [escalatedWaves, setEscalatedWaves] = useState<number[]>([1]);
-  const [activeTab, setActiveTab] = useState<'candidates' | 'formula' | 'waves'>('candidates');
+  const [escalatingWave, setEscalatingWave] = useState(null);
+  const [escalatedWaves, setEscalatedWaves] = useState([1]);
+  const [activeTab, setActiveTab] = useState('candidates');
 
-  const loadMatching = async (gigId: string) => {
+  const loadMatching = async (gigId) => {
     setLoading(true);
     try {
       const data = await fetchGigMatching(gigId);

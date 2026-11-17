@@ -1,16 +1,9 @@
 import React from 'react';
-import type { NotificationItem } from '../types';
 import { Bell, X, MapPin } from 'lucide-react';
 
-interface NotificationDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  notifications: NotificationItem[];
-  onSelectNotificationGig: (gigId: string) => void;
-  onMarkRead: (notifId: string) => void;
-}
 
-export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
+
+export const NotificationDrawer = ({
   isOpen,
   onClose,
   notifications,

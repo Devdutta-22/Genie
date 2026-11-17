@@ -1,14 +1,12 @@
 import express from 'express';
-import type { Request, Response } from 'express';
-import { db } from '../db.ts';
-import { broadcastWsEvent } from '../index.ts';
+import { db } from '../db.js';
+import { broadcastWsEvent } from '../ws.js';
 
 const Router = express.Router;
-
 export const ratingsRouter = Router();
 
 // POST submit rating for a gig
-ratingsRouter.post('/:gigId', (req: Request, res: Response) => {
+ratingsRouter.post('/:gigId', (req, res) => {
   try {
     const { from_user_id, to_user_id, communication_rating, quality_rating, reliability_rating, review } = req.body;
     if (!from_user_id || !to_user_id) {
@@ -28,32 +26,31 @@ ratingsRouter.post('/:gigId', (req: Request, res: Response) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(id, req.params.gigId, from_user_id, to_user_id, overallRating, cRating, qRating, rRating, review || '', now);
 
-    // Recalculate recipient user's average rating
-    const recipient = db.prepare('SELECT rating, rating_count FROM users WHERE id = ?').get(to_user_id) as any;
-    if (recipient) {
-      const currentCount = recipient.rating_count || 0;
-      const currentRating = recipient.rating || 5.0;
-      const newCount = currentCount + 1;
-      const newRating = Math.round((((currentRating * currentCount) + overallRating) / newCount) * 10) / 10;
+    // Recompute recipient average rating
+    const avgData = db.prepare(`
+      SELECT AVG(rating) as avg_rating, COUNT(*) as count
+      FROM ratings
+      WHERE to_user_id = ?
+    `).get(to_user_id);
 
+    if (avgData && avgData.count > 0) {
+      const roundedAvg = Math.round(avgData.avg_rating * 10) / 10;
       db.prepare(`
         UPDATE users
         SET rating = ?, rating_count = ?
         WHERE id = ?
-      `).run(newRating, newCount, to_user_id);
+      `).run(roundedAvg, avgData.count, to_user_id);
     }
 
-    // Mark gig status as RATED or CLOSED
-    db.prepare("UPDATE gigs SET status = 'CLOSED' WHERE id = ?").run(req.params.gigId);
-
-    broadcastWsEvent('GIG_RATED', { gigId: req.params.gigId, toUserId: to_user_id, rating: overallRating });
+    broadcastWsEvent('NEW_RATING', { gigId: req.params.gigId, toUserId: to_user_id, rating: overallRating });
 
     res.status(201).json({
       success: true,
-      message: 'Rating and review recorded successfully!',
-      rating: overallRating
+      ratingId: id,
+      overallRating,
+      message: 'Review recorded successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

@@ -1,28 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { Gig, User } from '../types';
 import L from 'leaflet';
-import { COMMUNITY_LOCATIONS } from './CommunitySection';
+import { COMMUNITY_LOCATIONS } from './CommunitySection.jsx';
 
-interface CampusMapProps {
-  gigs: Gig[];
-  currentUser: User | null;
-  onSelectGig: (gig: Gig) => void;
-  onAcceptGig: (gig: Gig) => void;
-  onUpdateLocation: (locationName: string, lat: number, lon: number) => void;
-}
 
-export const CampusMap: React.FC<CampusMapProps> = ({
+
+export const CampusMap = ({
   gigs,
   currentUser,
   onSelectGig,
   onAcceptGig,
   onUpdateLocation
 }) => {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
-  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersLayerRef = useRef(null);
 
-  const [selectedGig, setSelectedGig] = useState<Gig | null>(null);
+  const [selectedGig, setSelectedGig] = useState(null);
 
   // Initialize Map
   useEffect(() => {
@@ -95,7 +88,7 @@ export const CampusMap: React.FC<CampusMapProps> = ({
       });
 
       L.marker([hub.lat, hub.lon], { icon: hubIcon })
-        .addTo(markersLayerRef.current!)
+        .addTo(markersLayerRef.current)
         .bindPopup(`
           <div style="font-family: inherit; font-size: 12px;">
             <b style="color: #1e3a8a;">${hub.name}</b><br/>
@@ -128,7 +121,7 @@ export const CampusMap: React.FC<CampusMapProps> = ({
       });
 
       const marker = L.marker([gig.latitude, gig.longitude], { icon: gigIcon }).addTo(
-        markersLayerRef.current!
+        markersLayerRef.current
       );
 
       marker.on('click', () => {
@@ -137,7 +130,7 @@ export const CampusMap: React.FC<CampusMapProps> = ({
     });
   }, [gigs, currentUser]);
 
-  const handleFlyTo = (loc: (typeof COMMUNITY_LOCATIONS)[0]) => {
+  const handleFlyTo = (loc) => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.flyTo([loc.lat, loc.lon], 15, { duration: 1 });
       onUpdateLocation(loc.name, loc.lat, loc.lon);

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { User, GigCategory } from '../types';
-import { extractGigWithAi, createGig } from '../services/api';
+import { extractGigWithAi, createGig } from '../services/api.js';
 import {
   X,
   AlertCircle,
@@ -8,15 +7,9 @@ import {
   Sparkles
 } from 'lucide-react';
 
-interface PostGigModalProps {
-  currentUser: User | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onGigCreated: (gig: any) => void;
-  initialLocation?: string;
-}
 
-const CATEGORIES: GigCategory[] = [
+
+const CATEGORIES = [
   'Design',
   'Tech/Coding',
   'Academics',
@@ -32,7 +25,7 @@ export const CAMPUS_LOCATIONS = [
   { name: 'Supertech', lat: 28.4735, lon: 77.5036 }
 ];
 
-export const PostGigModal: React.FC<PostGigModalProps> = ({
+export const PostGigModal = ({
   currentUser,
   isOpen,
   onClose,
@@ -46,16 +39,16 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({
   // Form fields
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<GigCategory>('Design');
+  const [category, setCategory] = useState('Design');
   const [budget, setBudget] = useState(300);
   const [locationName, setLocationName] = useState(initialLocation || CAMPUS_LOCATIONS[0].name);
   const [deadline, setDeadline] = useState('Tomorrow, 6:00 PM');
-  const [urgency, setUrgency] = useState<'Low' | 'Normal' | 'Urgent'>('Normal');
-  const [skills, setSkills] = useState<string[]>(['Canva', 'Photoshop']);
+  const [urgency, setUrgency] = useState('Normal');
+  const [skills, setSkills] = useState(['Canva', 'Photoshop']);
   const [skillInput, setSkillInput] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (initialLocation) {
@@ -72,7 +65,7 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({
     try {
       const res = await extractGigWithAi(aiPrompt);
       if (res.title) setTitle(res.title);
-      if (res.category) setCategory(res.category as GigCategory);
+      if (res.category) setCategory(res.category);
       if (res.budget) setBudget(res.budget);
       if (res.deadline) setDeadline(res.deadline);
       if (res.urgency) setUrgency(res.urgency);
@@ -89,7 +82,7 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({
       setDescription(aiPrompt);
       setAiSuccess(true);
       setTimeout(() => setAiSuccess(false), 3000);
-    } catch (e: any) {
+    } catch (e) {
       setError('AI extraction could not process this prompt. Please fill fields manually.');
     } finally {
       setIsExtracting(false);
@@ -103,11 +96,11 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({
     }
   };
 
-  const handleRemoveSkill = (skillToRemove: string) => {
+  const handleRemoveSkill = (skillToRemove) => {
     setSkills(skills.filter((s) => s !== skillToRemove));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!currentUser) return;
     if (!title.trim()) {
@@ -146,7 +139,7 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({
 
       onGigCreated(newGig);
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message || 'Failed to create gig');
     } finally {
       setLoading(false);
@@ -269,7 +262,7 @@ export const PostGigModal: React.FC<PostGigModalProps> = ({
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as GigCategory)}
+                onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3 py-2 text-xs font-bold border-2 border-black bg-white focus:outline-none"
               >
                 {CATEGORIES.map((cat) => (

@@ -128,8 +128,8 @@ export function initDatabase() {
   `);
 
   // Auto-migrate users table with auth and verification columns
-  const userCols = db.prepare('PRAGMA table_info(users)').all() as any[];
-  const colNames = new Set(userCols.map((c: any) => c.name));
+  const userCols = db.prepare('PRAGMA table_info(users)').all();
+  const colNames = new Set(userCols.map((c) => c.name));
 
   if (!colNames.has('password_hash')) {
     db.exec('ALTER TABLE users ADD COLUMN password_hash TEXT;');
@@ -162,7 +162,7 @@ export function initDatabase() {
 
   // Seed default data if users table is empty
   const countStmt = db.prepare('SELECT COUNT(*) as count FROM users');
-  const countRow = countStmt.get() as { count: number };
+  const countRow = countStmt.get();
   if (countRow.count === 0) {
     seedInitialData();
   }

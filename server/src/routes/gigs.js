@@ -1,18 +1,16 @@
 import express from 'express';
-import type { Request, Response } from 'express';
-import { db } from '../db.ts';
-import { calculateCandidateMatches, calculateDistanceMeters } from '../matching.ts';
-import { extractGigFromNaturalLanguage } from '../aiExtractor.ts';
-import { broadcastWsEvent } from '../index.ts';
+import { db } from '../db.js';
+import { calculateCandidateMatches, calculateDistanceMeters } from '../matching.js';
+import { extractGigFromNaturalLanguage } from '../aiExtractor.js';
+import { broadcastWsEvent } from '../ws.js';
 
 const Router = express.Router;
-
 export const gigsRouter = Router();
 
 // GET all gigs with user proximity distance
-gigsRouter.get('/', (req: Request, res: Response) => {
+gigsRouter.get('/', (req, res) => {
   try {
-    const { category, status, search, userLat, userLon, userId } = req.query;
+    const { category, status, search, userLat, userLon } = req.query;
 
     let query = `
       SELECT g.*, u.name as poster_name, u.avatar as poster_avatar, u.rating as poster_rating,
@@ -22,7 +20,7 @@ gigsRouter.get('/', (req: Request, res: Response) => {
       LEFT JOIN users w ON g.assigned_worker_id = w.id
       WHERE 1=1
     `;
-    const params: any[] = [];
+    const params = [];
 
     if (category && category !== 'All') {
       query += ` AND g.category = ?`;
@@ -42,23 +40,23 @@ gigsRouter.get('/', (req: Request, res: Response) => {
 
     query += ` ORDER BY g.created_at DESC`;
 
-    const gigs = db.prepare(query).all(...params) as any[];
+    const gigs = db.prepare(query).all(...params);
 
     // Fetch skills for all gigs
     const gigSkillsStmt = db.prepare('SELECT gig_id, skill_name FROM gig_skills');
-    const allGigSkills = gigSkillsStmt.all() as { gig_id: string; skill_name: string }[];
-    const skillsMap = new Map<string, string[]>();
+    const allGigSkills = gigSkillsStmt.all();
+    const skillsMap = new Map();
     for (const item of allGigSkills) {
       if (!skillsMap.has(item.gig_id)) skillsMap.set(item.gig_id, []);
-      skillsMap.get(item.gig_id)!.push(item.skill_name);
+      skillsMap.get(item.gig_id).push(item.skill_name);
     }
 
-    const clientLat = userLat ? parseFloat(userLat as string) : null;
-    const clientLon = userLon ? parseFloat(userLon as string) : null;
+    const clientLat = userLat ? parseFloat(userLat) : null;
+    const clientLon = userLon ? parseFloat(userLon) : null;
 
-    const formatted = gigs.map(gig => {
+    const formatted = gigs.map((gig) => {
       const skills = skillsMap.get(gig.id) || [];
-      let distanceMeters: number | null = null;
+      let distanceMeters = null;
       if (clientLat !== null && clientLon !== null) {
         distanceMeters = calculateDistanceMeters(clientLat, clientLon, gig.latitude, gig.longitude);
       }
@@ -70,13 +68,13 @@ gigsRouter.get('/', (req: Request, res: Response) => {
     });
 
     res.json(formatted);
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // GET single gig with details
-gigsRouter.get('/:id', (req: Request, res: Response) => {
+gigsRouter.get('/:id', (req, res) => {
   try {
     const gig = db.prepare(`
       SELECT g.*, u.name as poster_name, u.avatar as poster_avatar, u.rating as poster_rating, u.course as poster_course,
@@ -85,21 +83,21 @@ gigsRouter.get('/:id', (req: Request, res: Response) => {
       JOIN users u ON g.poster_id = u.id
       LEFT JOIN users w ON g.assigned_worker_id = w.id
       WHERE g.id = ?
-    `).get(req.params.id) as any;
+    `).get(req.params.id);
 
     if (!gig) {
       return res.status(404).json({ error: 'Gig not found' });
     }
 
-    const skills = db.prepare('SELECT skill_name FROM gig_skills WHERE gig_id = ?').all(gig.id).map((s: any) => s.skill_name);
+    const skills = db.prepare('SELECT skill_name FROM gig_skills WHERE gig_id = ?').all(gig.id).map((s) => s.skill_name);
     res.json({ ...gig, skills });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // AI Requirement Extraction from Natural Description
-gigsRouter.post('/extract', (req: Request, res: Response) => {
+gigsRouter.post('/extract', (req, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt || typeof prompt !== 'string') {
@@ -107,13 +105,13 @@ gigsRouter.post('/extract', (req: Request, res: Response) => {
     }
     const extracted = extractGigFromNaturalLanguage(prompt);
     res.json(extracted);
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST create new gig
-gigsRouter.post('/', (req: Request, res: Response) => {
+gigsRouter.post('/', (req, res) => {
   try {
     const {
       poster_id, title, description, category, budget,
@@ -155,7 +153,7 @@ gigsRouter.post('/', (req: Request, res: Response) => {
     // Auto-calculate initial candidate matches & trigger Wave 1 notification dispatch
     try {
       const matchResult = calculateCandidateMatches(id);
-      const wave1Candidates = matchResult.candidates.filter(c => c.recommendedWave === 1);
+      const wave1Candidates = matchResult.candidates.filter((c) => c.recommendedWave === 1);
       const insertNotification = db.prepare(`
         INSERT INTO notifications (id, gig_id, user_id, wave, distance_meters, match_score, status, created_at)
         VALUES (?, ?, ?, 1, ?, ?, 'UNREAD', ?)
@@ -172,30 +170,30 @@ gigsRouter.post('/', (req: Request, res: Response) => {
     broadcastWsEvent('GIG_CREATED', { gigId: id, title, budget: budgetNum });
 
     res.status(201).json(created);
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // GET matching candidates for a gig with full score breakdown
-gigsRouter.get('/:id/match', (req: Request, res: Response) => {
+gigsRouter.get('/:id/match', (req, res) => {
   try {
     const result = calculateCandidateMatches(req.params.id);
     res.json(result);
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST trigger next wave notifications
-gigsRouter.post('/:id/notify-wave', (req: Request, res: Response) => {
+gigsRouter.post('/:id/notify-wave', (req, res) => {
   try {
     const { wave } = req.body;
     const waveNum = parseInt(wave, 10);
     const matchResult = calculateCandidateMatches(req.params.id);
 
     // Candidates in this wave
-    const waveCandidates = matchResult.candidates.filter(c => c.recommendedWave === waveNum);
+    const waveCandidates = matchResult.candidates.filter((c) => c.recommendedWave === waveNum);
     const insertNotification = db.prepare(`
       INSERT OR REPLACE INTO notifications (id, gig_id, user_id, wave, distance_meters, match_score, status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, 'UNREAD', ?)
@@ -213,13 +211,13 @@ gigsRouter.post('/:id/notify-wave', (req: Request, res: Response) => {
       candidatesNotified: waveCandidates.length,
       candidates: waveCandidates
     });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST accept gig (ATOMIC ASSIGNMENT WITH RACE CONDITION HANDLING)
-gigsRouter.post('/:id/accept', (req: Request, res: Response) => {
+gigsRouter.post('/:id/accept', (req, res) => {
   try {
     const { worker_id } = req.body;
     if (!worker_id) {
@@ -228,7 +226,7 @@ gigsRouter.post('/:id/accept', (req: Request, res: Response) => {
 
     // ATOMIC TRANSACTION: Check status and assign immediately
     const checkStmt = db.prepare('SELECT status, assigned_worker_id, poster_id, title FROM gigs WHERE id = ?');
-    const gig = checkStmt.get(req.params.id) as any;
+    const gig = checkStmt.get(req.params.id);
 
     if (!gig) {
       return res.status(404).json({ error: 'Gig not found' });
@@ -282,16 +280,16 @@ gigsRouter.post('/:id/accept', (req: Request, res: Response) => {
       message: 'Gig successfully assigned to you!',
       gig: updatedGig
     });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST update gig status (e.g. IN_PROGRESS, SUBMITTED)
-gigsRouter.post('/:id/status', (req: Request, res: Response) => {
+gigsRouter.post('/:id/status', (req, res) => {
   try {
     const { status, submission_notes, submission_link } = req.body;
-    const gig = db.prepare('SELECT * FROM gigs WHERE id = ?').get(req.params.id) as any;
+    const gig = db.prepare('SELECT * FROM gigs WHERE id = ?').get(req.params.id);
     if (!gig) return res.status(404).json({ error: 'Gig not found' });
 
     if (status === 'SUBMITTED') {
@@ -307,15 +305,15 @@ gigsRouter.post('/:id/status', (req: Request, res: Response) => {
     broadcastWsEvent('GIG_STATUS_UPDATED', { gigId: req.params.id, status });
     const updated = db.prepare('SELECT * FROM gigs WHERE id = ?').get(req.params.id);
     res.json(updated);
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST poster approves submitted gig and releases payment
-gigsRouter.post('/:id/approve', (req: Request, res: Response) => {
+gigsRouter.post('/:id/approve', (req, res) => {
   try {
-    const gig = db.prepare('SELECT * FROM gigs WHERE id = ?').get(req.params.id) as any;
+    const gig = db.prepare('SELECT * FROM gigs WHERE id = ?').get(req.params.id);
     if (!gig) return res.status(404).json({ error: 'Gig not found' });
 
     const now = new Date().toISOString();
@@ -353,18 +351,18 @@ gigsRouter.post('/:id/approve', (req: Request, res: Response) => {
         transactionId: 'TXN_' + Date.now()
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST cancel gig
-gigsRouter.post('/:id/cancel', (req: Request, res: Response) => {
+gigsRouter.post('/:id/cancel', (req, res) => {
   try {
     db.prepare("UPDATE gigs SET status = 'CANCELLED' WHERE id = ?").run(req.params.id);
     broadcastWsEvent('GIG_CANCELLED', { gigId: req.params.id });
     res.json({ success: true, message: 'Gig cancelled' });
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

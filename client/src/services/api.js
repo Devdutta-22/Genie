@@ -1,12 +1,10 @@
-import type { User, Gig, MatchingResult, ChatMessage, NotificationItem } from '../types';
-
 const API_BASE = '/api';
 
 export const getAuthToken = () => localStorage.getItem('gully_auth_token');
-export const setAuthToken = (token: string) => localStorage.setItem('gully_auth_token', token);
+export const setAuthToken = (token) => localStorage.setItem('gully_auth_token', token);
 export const clearAuthToken = () => localStorage.removeItem('gully_auth_token');
 
-export async function loginUser(credentials: { email: string; password: string }): Promise<{ token: string; user: User }> {
+export async function loginUser(credentials) {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -18,7 +16,7 @@ export async function loginUser(credentials: { email: string; password: string }
   return data;
 }
 
-export async function registerUser(formData: FormData): Promise<{ token: string; user: User; message: string }> {
+export async function registerUser(formData) {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: 'POST',
     body: formData // Multer handles multipart boundary automatically
@@ -29,7 +27,7 @@ export async function registerUser(formData: FormData): Promise<{ token: string;
   return data;
 }
 
-export async function fetchCurrentUser(): Promise<User | null> {
+export async function fetchCurrentUser() {
   const token = getAuthToken();
   if (!token) return null;
   const res = await fetch(`${API_BASE}/auth/me`, {
@@ -43,25 +41,25 @@ export async function fetchCurrentUser(): Promise<User | null> {
   return data.user;
 }
 
-export async function fetchDemoUsers(): Promise<User[]> {
+export async function fetchDemoUsers() {
   const res = await fetch(`${API_BASE}/auth/demo-users`);
   if (!res.ok) return [];
   return res.json();
 }
 
-export async function fetchUsers(): Promise<User[]> {
+export async function fetchUsers() {
   const res = await fetch(`${API_BASE}/users`);
   if (!res.ok) throw new Error('Failed to fetch users');
   return res.json();
 }
 
-export async function fetchUserProfile(userId: string): Promise<User> {
+export async function fetchUserProfile(userId) {
   const res = await fetch(`${API_BASE}/users/${userId}`);
   if (!res.ok) throw new Error('Failed to fetch user profile');
   return res.json();
 }
 
-export async function updateUserLocation(userId: string, location_name: string, latitude: number, longitude: number): Promise<void> {
+export async function updateUserLocation(userId, location_name, latitude, longitude) {
   const res = await fetch(`${API_BASE}/users/${userId}/location`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -70,13 +68,7 @@ export async function updateUserLocation(userId: string, location_name: string, 
   if (!res.ok) throw new Error('Failed to update location');
 }
 
-export async function fetchGigs(params?: {
-  category?: string;
-  status?: string;
-  search?: string;
-  userLat?: number;
-  userLon?: number;
-}): Promise<Gig[]> {
+export async function fetchGigs(params) {
   const searchParams = new URLSearchParams();
   if (params?.category && params.category !== 'All') searchParams.append('category', params.category);
   if (params?.status && params.status !== 'All') searchParams.append('status', params.status);
@@ -89,25 +81,13 @@ export async function fetchGigs(params?: {
   return res.json();
 }
 
-export async function fetchGigDetails(gigId: string): Promise<Gig> {
+export async function fetchGigDetails(gigId) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}`);
   if (!res.ok) throw new Error('Failed to fetch gig details');
   return res.json();
 }
 
-export async function createGig(data: {
-  poster_id: string;
-  title: string;
-  description: string;
-  category: string;
-  budget: number;
-  location_name: string;
-  latitude: number;
-  longitude: number;
-  deadline: string;
-  urgency: string;
-  skills: string[];
-}): Promise<Gig> {
+export async function createGig(data) {
   const res = await fetch(`${API_BASE}/gigs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -120,7 +100,7 @@ export async function createGig(data: {
   return res.json();
 }
 
-export async function extractGigWithAi(prompt: string): Promise<any> {
+export async function extractGigWithAi(prompt) {
   const res = await fetch(`${API_BASE}/gigs/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -130,13 +110,13 @@ export async function extractGigWithAi(prompt: string): Promise<any> {
   return res.json();
 }
 
-export async function fetchGigMatching(gigId: string): Promise<MatchingResult> {
+export async function fetchGigMatching(gigId) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}/match`);
   if (!res.ok) throw new Error('Failed to fetch matching results');
   return res.json();
 }
 
-export async function notifyWave(gigId: string, wave: number): Promise<any> {
+export async function notifyWave(gigId, wave) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}/notify-wave`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -146,7 +126,7 @@ export async function notifyWave(gigId: string, wave: number): Promise<any> {
   return res.json();
 }
 
-export async function acceptGig(gigId: string, worker_id: string): Promise<any> {
+export async function acceptGig(gigId, worker_id) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}/accept`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -159,7 +139,7 @@ export async function acceptGig(gigId: string, worker_id: string): Promise<any> 
   return data;
 }
 
-export async function updateGigStatus(gigId: string, status: string, notes?: string, link?: string): Promise<Gig> {
+export async function updateGigStatus(gigId, status, notes, link) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -169,7 +149,7 @@ export async function updateGigStatus(gigId: string, status: string, notes?: str
   return res.json();
 }
 
-export async function approveGig(gigId: string): Promise<any> {
+export async function approveGig(gigId) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -179,7 +159,7 @@ export async function approveGig(gigId: string): Promise<any> {
   return res.json();
 }
 
-export async function cancelGig(gigId: string): Promise<any> {
+export async function cancelGig(gigId) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -189,13 +169,13 @@ export async function cancelGig(gigId: string): Promise<any> {
   return res.json();
 }
 
-export async function fetchMessages(gigId: string): Promise<ChatMessage[]> {
+export async function fetchMessages(gigId) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}/messages`);
   if (!res.ok) throw new Error('Failed to fetch messages');
   return res.json();
 }
 
-export async function sendMessage(gigId: string, sender_id: string, receiver_id: string, message: string): Promise<ChatMessage> {
+export async function sendMessage(gigId, sender_id, receiver_id, message) {
   const res = await fetch(`${API_BASE}/gigs/${gigId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -205,14 +185,7 @@ export async function sendMessage(gigId: string, sender_id: string, receiver_id:
   return res.json();
 }
 
-export async function submitRating(gigId: string, data: {
-  from_user_id: string;
-  to_user_id: string;
-  communication_rating: number;
-  quality_rating: number;
-  reliability_rating: number;
-  review: string;
-}): Promise<any> {
+export async function submitRating(gigId, data) {
   const res = await fetch(`${API_BASE}/ratings/${gigId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -222,12 +195,12 @@ export async function submitRating(gigId: string, data: {
   return res.json();
 }
 
-export async function fetchNotifications(userId: string): Promise<NotificationItem[]> {
+export async function fetchNotifications(userId) {
   const res = await fetch(`${API_BASE}/notifications/${userId}`);
   if (!res.ok) throw new Error('Failed to fetch notifications');
   return res.json();
 }
 
-export async function markNotificationRead(notifId: string): Promise<void> {
+export async function markNotificationRead(notifId) {
   await fetch(`${API_BASE}/notifications/${notifId}/read`, { method: 'PUT' });
 }

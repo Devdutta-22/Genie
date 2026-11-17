@@ -1,18 +1,8 @@
 import { MapPin, ArrowUpRight } from 'lucide-react';
-import type { Gig } from '../types';
 
-export interface LocationCommunity {
-  id: string;
-  name: string;
-  alias: string;
-  tagline: string;
-  lat: number;
-  lon: number;
-  imageUrl: string;
-  subLocationCount?: number;
-}
 
-export const COMMUNITY_LOCATIONS: LocationCommunity[] = [
+
+export const COMMUNITY_LOCATIONS = [
   {
     id: 'galgotias',
     name: 'Galgotias University',
@@ -51,14 +41,9 @@ export const COMMUNITY_LOCATIONS: LocationCommunity[] = [
   }
 ];
 
-interface CommunitySectionProps {
-  selectedLocation: string;
-  onSelectLocation: (locationName: string, lat: number, lon: number) => void;
-  gigs: Gig[];
-  onOpenNewGig: (prefillLocation?: string) => void;
-}
 
-export const CommunitySection: React.FC<CommunitySectionProps> = ({
+
+export const CommunitySection = ({
   selectedLocation,
   onSelectLocation,
   gigs,

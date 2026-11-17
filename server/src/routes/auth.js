@@ -1,11 +1,10 @@
 import express from 'express';
-import type { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'node:path';
 import fs from 'node:fs';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from '../db.ts';
+import { db } from '../db.js';
 
 export const authRouter = express.Router();
 export const JWT_SECRET = process.env.JWT_SECRET || 'gully_gigs_campus_secret_key_2026';
@@ -42,9 +41,11 @@ const upload = multer({
 });
 
 // Helper to format user response safely (strips password_hash)
-function sanitizeUser(user: any) {
+function sanitizeUser(user) {
   const { password_hash, ...safeUser } = user;
-  const skills = db.prepare('SELECT skill_name as skill, experience_level as level FROM user_skills WHERE user_id = ?').all(user.id);
+  const skills = db
+    .prepare('SELECT skill_name as skill, experience_level as level FROM user_skills WHERE user_id = ?')
+    .all(user.id);
   return {
     ...safeUser,
     skills
@@ -52,7 +53,7 @@ function sanitizeUser(user: any) {
 }
 
 // POST /api/auth/register - Register a new campus student with ID card upload
-authRouter.post('/register', upload.single('id_card'), async (req: Request, res: Response) => {
+authRouter.post('/register', upload.single('id_card'), async (req, res) => {
   try {
     const {
       name,
@@ -90,7 +91,7 @@ authRouter.post('/register', upload.single('id_card'), async (req: Request, res:
     const cleanEmail = email.trim().toLowerCase();
 
     // Check if email already exists
-    const existingUser = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail) as any;
+    const existingUser = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanEmail);
     if (existingUser) {
       // Remove uploaded file if user already exists
       if (req.file) {
@@ -141,7 +142,7 @@ authRouter.post('/register', upload.single('id_card'), async (req: Request, res:
     );
 
     // Insert user skills if provided
-    let skillsList: any[] = [];
+    let skillsList = [];
     if (skills) {
       try {
         skillsList = typeof skills === 'string' ? JSON.parse(skills) : skills;
@@ -159,7 +160,7 @@ authRouter.post('/register', upload.single('id_card'), async (req: Request, res:
       }
     }
 
-    const createdRaw = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+    const createdRaw = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
     const user = sanitizeUser(createdRaw);
 
     // Sign JWT
@@ -174,14 +175,14 @@ authRouter.post('/register', upload.single('id_card'), async (req: Request, res:
       token,
       user
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: error.message || 'Server error during registration' });
   }
 });
 
 // POST /api/auth/login - Log in with email and password
-authRouter.post('/login', async (req: Request, res: Response) => {
+authRouter.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -190,7 +191,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const userRaw = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(cleanEmail) as any;
+    const userRaw = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(cleanEmail);
 
     if (!userRaw) {
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -218,14 +219,14 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       token,
       user
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: error.message || 'Server error during login' });
   }
 });
 
 // GET /api/auth/me - Get current logged-in user details from JWT token
-authRouter.get('/me', (req: Request, res: Response) => {
+authRouter.get('/me', (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -233,22 +234,22 @@ authRouter.get('/me', (req: Request, res: Response) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-    const userRaw = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id) as any;
+    const userRaw = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id);
     if (!userRaw) {
       return res.status(404).json({ error: 'User no longer exists' });
     }
 
     const user = sanitizeUser(userRaw);
     res.json({ user });
-  } catch (error: any) {
+  } catch (error) {
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 });
 
 // GET /api/auth/demo-users - Quick demo logins for faculty / examiners during viva
-authRouter.get('/demo-users', (req: Request, res: Response) => {
+authRouter.get('/demo-users', (req, res) => {
   try {
     const seedUsers = db.prepare(`
       SELECT id, name, email, avatar, college, course, department, verification_status 
@@ -256,7 +257,7 @@ authRouter.get('/demo-users', (req: Request, res: Response) => {
       LIMIT 6
     `).all();
     res.json(seedUsers);
-  } catch (error: any) {
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

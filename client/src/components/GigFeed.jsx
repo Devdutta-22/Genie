@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import type { Gig, GigCategory, User } from '../types';
-import { CommunitySection, COMMUNITY_LOCATIONS } from './CommunitySection';
+import { CommunitySection, COMMUNITY_LOCATIONS } from './CommunitySection.jsx';
 import {
   Search,
   MapPin,
@@ -18,17 +17,9 @@ import {
   X
 } from 'lucide-react';
 
-interface GigFeedProps {
-  gigs: Gig[];
-  currentUser: User | null;
-  onSelectGig: (gig: Gig) => void;
-  onAcceptGig: (gig: Gig) => void;
-  onOpenNewGig: (prefillLocation?: string) => void;
-  onLocationFilterChange?: (locationName: string, lat: number, lon: number) => void;
-  selectedCommunityLocation?: string;
-}
 
-const CATEGORIES: { label: GigCategory; icon: any }[] = [
+
+const CATEGORIES = [
   { label: 'All', icon: Layers },
   { label: 'Design', icon: Palette },
   { label: 'Tech/Coding', icon: Code },
@@ -38,7 +29,7 @@ const CATEGORIES: { label: GigCategory; icon: any }[] = [
   { label: 'Media', icon: Camera }
 ];
 
-export const GigFeed: React.FC<GigFeedProps> = ({
+export const GigFeed = ({
   gigs,
   currentUser,
   onSelectGig,
@@ -48,10 +39,10 @@ export const GigFeed: React.FC<GigFeedProps> = ({
   selectedCommunityLocation = ''
 }) => {
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<GigCategory>('All');
-  const [activeLocationFilter, setActiveLocationFilter] = useState<string>(selectedCommunityLocation);
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [activeLocationFilter, setActiveLocationFilter] = useState(selectedCommunityLocation);
 
-  const handleSelectCommunity = (name: string, lat: number, lon: number) => {
+  const handleSelectCommunity = (name, lat, lon) => {
     if (activeLocationFilter === name) {
       setActiveLocationFilter('');
     } else {

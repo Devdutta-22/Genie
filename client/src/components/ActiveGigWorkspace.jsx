@@ -1,25 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Gig, User, ChatMessage } from '../types';
 import {
   fetchMessages,
   sendMessage,
   updateGigStatus,
   approveGig,
   submitRating
-} from '../services/api';
+} from '../services/api.js';
 import {
   Send
 } from 'lucide-react';
 
-interface ActiveGigWorkspaceProps {
-  currentUser: User | null;
-  gig: Gig | null;
-  allGigs: Gig[];
-  onSelectGig: (gig: Gig) => void;
-  onGigUpdated: (updatedGig: Gig) => void;
-}
 
-export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
+
+export const ActiveGigWorkspace = ({
   currentUser,
   gig,
   allGigs,
@@ -34,7 +27,7 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
 
   const activeGig = gig || myGigs[0];
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState('');
   const [submittingNotes, setSubmittingNotes] = useState('');
   const [submittingLink, setSubmittingLink] = useState('');
@@ -46,9 +39,9 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
   const [ratingComment, setRatingComment] = useState('');
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef(null);
 
-  const loadMessages = async (gigId: string) => {
+  const loadMessages = async (gigId) => {
     try {
       const msgs = await fetchMessages(gigId);
       setMessages(msgs);
@@ -90,7 +83,7 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     if (!newMsg.trim() || !activeGig || !currentUser) return;
     const text = newMsg.trim();
@@ -109,7 +102,7 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
     }
   };
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus) => {
     if (!activeGig) return;
     try {
       const updated = await updateGigStatus(
@@ -135,13 +128,13 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
     }
   };
 
-  const handleSubmitRating = async (e: React.FormEvent) => {
+  const handleSubmitRating = async (e) => {
     e.preventDefault();
     if (!activeGig || !currentUser) return;
     setRatingSubmitting(true);
     const targetUserId =
       currentUser.id === activeGig.poster_id
-        ? activeGig.assigned_worker_id!
+        ? activeGig.assigned_worker_id
         : activeGig.poster_id;
 
     try {
@@ -154,7 +147,7 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
         review: ratingComment
       });
       setIsRatingOpen(false);
-      const updated = { ...activeGig, status: 'CLOSED' as const };
+      const updated = { ...activeGig, status: 'CLOSED' };
       onGigUpdated(updated);
     } catch (err) {
       console.error(err);
@@ -334,7 +327,7 @@ export const ActiveGigWorkspace: React.FC<ActiveGigWorkspaceProps> = ({
                   onClick={() => handleStatusChange('IN_PROGRESS')}
                   className="w-full py-2.5 bg-black text-white text-xs font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px]"
                 >
-                  Mark as In Progress
+                  Mark Progress
                 </button>
               )}
 

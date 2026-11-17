@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import type { Gig, User } from '../types';
-import { acceptGig } from '../services/api';
+import { acceptGig } from '../services/api.js';
 import {
   X,
   MapPin,
@@ -9,16 +8,9 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
-interface GigDetailModalProps {
-  gig: Gig | null;
-  currentUser: User | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onAccepted: (updatedGig: Gig) => void;
-  onOpenWorkspace: (gig: Gig) => void;
-}
 
-export const GigDetailModal: React.FC<GigDetailModalProps> = ({
+
+export const GigDetailModal = ({
   gig,
   currentUser,
   isOpen,
@@ -27,7 +19,7 @@ export const GigDetailModal: React.FC<GigDetailModalProps> = ({
   onOpenWorkspace
 }) => {
   const [loading, setLoading] = useState(false);
-  const [raceConditionError, setRaceConditionError] = useState<string | null>(null);
+  const [raceConditionError, setRaceConditionError] = useState(null);
 
   if (!isOpen || !gig) return null;
 
@@ -43,7 +35,7 @@ export const GigDetailModal: React.FC<GigDetailModalProps> = ({
       const res = await acceptGig(gig.id, currentUser.id);
       onAccepted(res.gig);
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       setRaceConditionError(err.message || 'Acceptance failed');
     } finally {
       setLoading(false);

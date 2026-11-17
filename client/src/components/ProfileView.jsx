@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import type { User } from '../types';
-import { fetchUserProfile } from '../services/api';
+import { fetchUserProfile } from '../services/api.js';
 import { Star, MapPin, IdCard, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
 
-interface ProfileViewProps {
-  currentUser: User | null;
-}
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ currentUser }) => {
-  const [profile, setProfile] = useState<User | null>(currentUser);
+
+export const ProfileView = ({ currentUser }) => {
+  const [profile, setProfile] = useState(currentUser);
 
   useEffect(() => {
     if (currentUser?.id) {

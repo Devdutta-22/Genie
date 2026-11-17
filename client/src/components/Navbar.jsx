@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import type { User } from '../types';
 import {
   Home,
   Flame,
@@ -14,19 +13,9 @@ import {
   Clock
 } from 'lucide-react';
 
-interface NavbarProps {
-  currentUser: User | null;
-  allUsers: User[];
-  onSelectUser: (user: User) => void;
-  onLogout?: () => void;
-  activeTab: 'feed' | 'map' | 'active' | 'profile';
-  setActiveTab: (tab: 'feed' | 'map' | 'active' | 'profile') => void;
-  unreadCount: number;
-  onOpenNotifications: () => void;
-  onOpenNewGigModal: () => void;
-}
 
-export const Navbar: React.FC<NavbarProps> = ({
+
+export const Navbar = ({
   currentUser,
   allUsers,
   onSelectUser,

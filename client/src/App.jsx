@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import type { User, Gig, NotificationItem } from './types';
 import {
   fetchUsers,
   fetchGigs,
@@ -8,24 +7,24 @@ import {
   updateUserLocation,
   fetchCurrentUser,
   clearAuthToken
-} from './services/api';
-import { Navbar } from './components/Navbar';
-import { GigFeed } from './components/GigFeed';
-import { CampusMap } from './components/CampusMap';
-import { PostGigModal } from './components/PostGigModal';
-import { GigDetailModal } from './components/GigDetailModal';
-import { ActiveGigWorkspace } from './components/ActiveGigWorkspace';
-import { ProfileView } from './components/ProfileView';
-import { NotificationDrawer } from './components/NotificationDrawer';
-import { AuthScreen } from './components/AuthScreen';
+} from './services/api.js';
+import { Navbar } from './components/Navbar.jsx';
+import { GigFeed } from './components/GigFeed.jsx';
+import { CampusMap } from './components/CampusMap.jsx';
+import { PostGigModal } from './components/PostGigModal.jsx';
+import { GigDetailModal } from './components/GigDetailModal.jsx';
+import { ActiveGigWorkspace } from './components/ActiveGigWorkspace.jsx';
+import { ProfileView } from './components/ProfileView.jsx';
+import { NotificationDrawer } from './components/NotificationDrawer.jsx';
+import { AuthScreen } from './components/AuthScreen.jsx';
 
 export function App() {
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const [gigs, setGigs] = useState<Gig[]>([]);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'feed' | 'map' | 'active' | 'profile'>('feed');
+  const [gigs, setGigs] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [activeTab, setActiveTab] = useState('feed');
 
   // Modals and Drawers
   const [isNewGigModalOpen, setIsNewGigModalOpen] = useState(false);
@@ -33,12 +32,12 @@ export function App() {
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
 
   // Selected Gigs for views
-  const [selectedGig, setSelectedGig] = useState<Gig | null>(null);
-  const [activeWorkspaceGig, setActiveWorkspaceGig] = useState<Gig | null>(null);
-  const [prefillLocation, setPrefillLocation] = useState<string | undefined>(undefined);
+  const [selectedGig, setSelectedGig] = useState(null);
+  const [activeWorkspaceGig, setActiveWorkspaceGig] = useState(null);
+  const [prefillLocation, setPrefillLocation] = useState(undefined);
 
   // Live Toast for new requests
-  const [liveToast, setLiveToast] = useState<{ title: string; message: string } | null>(null);
+  const [liveToast, setLiveToast] = useState(null);
 
   // Check existing auth token or session on load
   useEffect(() => {
@@ -62,7 +61,7 @@ export function App() {
     setCurrentUser(null);
   };
 
-  const handleAuthSuccess = (user: User) => {
+  const handleAuthSuccess = (user) => {
     setCurrentUser(user);
     fetchUsers().then(setAllUsers).catch(console.error);
   };
@@ -124,7 +123,7 @@ export function App() {
     };
   }, [currentUser]);
 
-  const handleUpdateLocation = async (locationName: string, lat: number, lon: number) => {
+  const handleUpdateLocation = async (locationName, lat, lon) => {
     if (!currentUser) return;
     try {
       await updateUserLocation(currentUser.id, locationName, lat, lon);
@@ -140,33 +139,33 @@ export function App() {
     }
   };
 
-  const handleSelectGig = (gig: Gig) => {
+  const handleSelectGig = (gig) => {
     setSelectedGig(gig);
     setIsDetailModalOpen(true);
   };
 
-  const handleOpenWorkspace = (gig: Gig) => {
+  const handleOpenWorkspace = (gig) => {
     setActiveWorkspaceGig(gig);
     setActiveTab('active');
   };
 
-  const handleGigCreated = (newGig: Gig) => {
+  const handleGigCreated = (newGig) => {
     reloadGigs();
     setSelectedGig(newGig);
     setActiveTab('feed');
   };
 
-  const handleAcceptedGig = (updatedGig: Gig) => {
+  const handleAcceptedGig = (updatedGig) => {
     reloadGigs();
     setActiveWorkspaceGig(updatedGig);
     setActiveTab('active');
   };
 
-  const handleMarkNotificationRead = async (notifId: string) => {
+  const handleMarkNotificationRead = async (notifId) => {
     try {
       await markNotificationRead(notifId);
       setNotifications((prev) =>
-        prev.map((n) => (n.id === notifId ? { ...n, status: 'READ' as const } : n))
+        prev.map((n) => (n.id === notifId ? { ...n, status: 'READ' } : n))
       );
     } catch (e) {
       console.error(e);

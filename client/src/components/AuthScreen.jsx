@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import type { User } from '../types';
-import { loginUser, registerUser, fetchDemoUsers } from '../services/api';
+import { loginUser, registerUser, fetchDemoUsers } from '../services/api.js';
 import {
   ShieldCheck,
   Upload,
   IdCard,
   Mail,
   Lock,
-  User as UserIcon,
+  User,
   GraduationCap,
   Sparkles,
   AlertCircle,
@@ -16,9 +15,7 @@ import {
   X
 } from 'lucide-react';
 
-interface AuthScreenProps {
-  onAuthSuccess: (user: User) => void;
-}
+
 
 const COMMON_SKILLS = [
   'Canva',
@@ -44,12 +41,12 @@ const CAMPUS_LOCATIONS = [
   { name: 'Knowledge Park 3', lat: 28.4682, lon: 77.4921 },
 ];
 
-export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
-  const [tab, setTab] = useState<'login' | 'register'>('login');
-  const [demoUsers, setDemoUsers] = useState<User[]>([]);
+export function AuthScreen({ onAuthSuccess }) {
+  const [tab, setTab] = useState('login');
+  const [demoUsers, setDemoUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -66,12 +63,12 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   const [regDepartment, setRegDepartment] = useState('Computer Science & Engineering');
   const [selectedLocation, setSelectedLocation] = useState(CAMPUS_LOCATIONS[0]);
   const [regBio, setRegBio] = useState('');
-  const [selectedSkills, setSelectedSkills] = useState<string[]>(['Canva', 'PPT Design']);
+  const [selectedSkills, setSelectedSkills] = useState(['Canva', 'PPT Design']);
 
   // ID Card file state
-  const [idCardFile, setIdCardFile] = useState<File | null>(null);
-  const [idCardPreview, setIdCardPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [idCardFile, setIdCardFile] = useState(null);
+  const [idCardPreview, setIdCardPreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Load demo users for rapid testing
   useEffect(() => {
@@ -80,7 +77,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       .catch(console.error);
   }, []);
 
-  const handleFileChange = (file: File | null) => {
+  const handleFileChange = (file) => {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
@@ -95,7 +92,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = () => {
-        setIdCardPreview(reader.result as string);
+        setIdCardPreview(reader.result);
       };
       reader.readAsDataURL(file);
     } else {
@@ -103,7 +100,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsLoading(true);
@@ -111,14 +108,14 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     try {
       const res = await loginUser({ email: loginEmail, password: loginPassword });
       onAuthSuccess(res.user);
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleQuickDemoLogin = async (user: User) => {
+  const handleQuickDemoLogin = async (user) => {
     setLoginEmail(user.email);
     setLoginPassword('password123');
     setErrorMessage(null);
@@ -127,14 +124,14 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     try {
       const res = await loginUser({ email: user.email, password: 'password123' });
       onAuthSuccess(res.user);
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(err.message || 'Quick login failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -173,14 +170,14 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       setTimeout(() => {
         onAuthSuccess(res.user);
       }, 1000);
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(err.message || 'Failed to create student account');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const toggleSkill = (skill: string) => {
+  const toggleSkill = (skill) => {
     if (selectedSkills.includes(skill)) {
       setSelectedSkills(selectedSkills.filter(s => s !== skill));
     } else {
