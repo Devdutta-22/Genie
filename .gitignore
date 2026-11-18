@@ -1,9 +1,0 @@
-node_modules/
-dist/
-server/data/
-.env
-.DS_Store
-*.log
-
-server/uploads/*
-!server/uploads/id_cards/.gitkeep
