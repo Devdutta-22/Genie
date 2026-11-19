@@ -1470,7 +1470,97 @@ WHERE table_schema IN (
 )
 ORDER BY table_schema, table_name;
 
+-- ============================================================
+-- GENIE AUTHENTICATION INTEGRATION
+-- ============================================================
+--
+-- Supabase Auth owns authentication credentials.
+-- We NEVER store passwords in Genie tables.
+--
+-- auth.users
+--     │
+--     │ same UUID
+--     ▼
+-- core.users
+--
+-- When a new Supabase Auth user is created, this trigger
+-- automatically creates the corresponding Genie application user.
+-- ============================================================
+
+
+-- ------------------------------------------------------------
+-- FUNCTION: Create Genie user after Supabase signup
+-- ------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION core.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, public
+AS $$
+DECLARE
+    v_university_id TEXT;
+BEGIN
+
+    -- university_id is required by Genie.
+    -- The frontend must send it during signup using:
+    --
+    -- options.data.university_id
+    --
+    v_university_id := NEW.raw_user_meta_data ->> 'university_id';
+
+    -- Do not allow an account to be created without
+    -- a university ID.
+    IF v_university_id IS NULL OR trim(v_university_id) = '' THEN
+        RAISE EXCEPTION 'University ID is required for Genie registration';
+    END IF;
+
+
+    -- Create the application-level Genie user.
+    --
+    -- Password is NOT stored here.
+    -- Supabase Auth remains responsible for credentials.
+
+    INSERT INTO core.users (
+        id,
+        university_id,
+        email,
+        phone,
+        role,
+        verification_status,
+        is_active,
+        trust_score
+    )
+    VALUES (
+        NEW.id,
+        trim(v_university_id),
+        NEW.email,
+        NEW.phone,
+        'STUDENT',
+        'PENDING',
+        TRUE,
+        50
+    );
+
+    RETURN NEW;
+END;
+$$;
+
+
+-- ------------------------------------------------------------
+-- TRIGGER: Run after a new Supabase Auth user is created
+-- ------------------------------------------------------------
+
+DROP TRIGGER IF EXISTS on_auth_user_created
+ON auth.users;
+
+
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION core.handle_new_user();
+
 
 -- ============================================================
--- END OF GENIE FINAL DATABASE SCHEMA
+-- END AUTHENTICATION INTEGRATION
 -- ============================================================
