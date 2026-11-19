@@ -1,0 +1,19 @@
+// use prisma-8
+
+// Represents a Genie application user.
+//
+// `Uuid` is the Prisma 8 UUID type.
+// We use `@@map("users")` because the actual PostgreSQL
+// table is named `users`.
+//
+// Note:
+// The PostgreSQL schema is intentionally not declared with
+// `@@schema()` because that attribute is not supported by
+// this Prisma 8 contract syntax.
+model User {
+  id           Uuid   @id
+  email        String
+  universityId String @map("university_id")
+
+  @@map("users")
+}

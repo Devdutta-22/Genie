@@ -1,0 +1,1018 @@
+// use prisma-8
+
+// ============================================================================
+// GENIE PRISMA 8 DATA CONTRACT
+// ============================================================================
+// Notes on Prisma 8 Syntax & Architecture:
+// 1. Prisma 8 uses native scalar types in type positions: `Uuid` is used directly
+//    instead of the legacy Prisma attribute `@db.Uuid`.
+// 2. Multi-schema PostgreSQL database organization is represented using
+//    Prisma 8 `namespace <name> { ... }` blocks rather than unsupported `@@schema(...)`.
+// 3. PostgreSQL physical naming:
+//    - `@@map("table_name")` maps the Prisma model to the underlying PostgreSQL table.
+//    - `@map("column_name")` maps camelCase field identifiers to snake_case PostgreSQL columns.
+// 4. Default database expressions utilize SQL templates, e.g. `@default(sql`gen_random_uuid()`)`.
+// 5. Raw PostgreSQL types not modeled directly by Prisma use `Raw(sql`...`)`, e.g. PostGIS geography and inet.
+// 6. Cross-namespace relations resolve using the `<namespace>.<Model>` target type syntax.
+// ============================================================================
+
+
+// ============================================================================
+// 1. CAMPUS NAMESPACE (Campuses, Operating Hours, Physical Locations)
+// ============================================================================
+
+namespace campus {
+  /// Represents a distinct university campus entity.
+  model Campus {
+    /// Unique campus identifier.
+    id             Uuid     @id @default(sql`gen_random_uuid()`)
+    /// Full name of the campus.
+    name           String
+    /// Short unique identifier code (e.g. 'GU').
+    code           String   @unique
+    /// Parent university name.
+    universityName String?  @map("university_name")
+    /// City where the campus is located.
+    city           String?
+    /// State / Province.
+    state          String?
+    /// Country of operation.
+    country        String?  @default("India")
+    /// Canonical IANA timezone string for campus scheduling.
+    timezone       String   @default("Asia/Kolkata")
+    /// Whether the campus is actively serviced.
+    isActive       Boolean  @default(true) @map("is_active")
+    /// Creation timestamp.
+    createdAt      DateTime @default(now()) @map("created_at")
+    /// Modification timestamp.
+    updatedAt      DateTime @default(now()) @map("updated_at")
+
+    @@map("campuses")
+  }
+
+  /// Defines operating hours per day of the week for a specific campus.
+  model CampusHours {
+    /// Unique operating hours record identifier.
+    id        Uuid     @id @default(sql`gen_random_uuid()`)
+    /// Foreign key referencing the Campus.
+    campusId  Uuid     @map("campus_id")
+    /// Day of the week (0 = Sunday through 6 = Saturday).
+    dayOfWeek Int      @map("day_of_week")
+    /// Time when the campus opens.
+    opensAt   Time?    @map("opens_at")
+    /// Time when the campus closes.
+    closesAt  Time?    @map("closes_at")
+    /// Indicates if the campus is completely closed on this day.
+    isClosed  Boolean  @default(false) @map("is_closed")
+
+    /// Relationship to parent Campus.
+    campus    Campus   @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+    /// Unique constraint ensuring one schedule row per campus day.
+    @@unique([campusId, dayOfWeek])
+    @@map("campus_hours")
+  }
+
+  /// Specific physical landmarks, buildings, gates, and rooms within a campus.
+  model Location {
+    /// Unique location identifier.
+    id           Uuid                             @id @default(sql`gen_random_uuid()`)
+    /// Foreign key referencing the parent Campus.
+    campusId     Uuid                             @map("campus_id")
+    /// Location display name (e.g. 'Main Gate 1', 'Block B Cafeteria').
+    name         String
+    /// Location type: 'GATE', 'BUILDING', 'HOSTEL', 'CLASSROOM', 'LIBRARY', etc.
+    type         String
+    /// Building reference code.
+    buildingCode String?                          @map("building_code")
+    /// Floor designation.
+    floor        String?
+    /// Specific room or hall number.
+    room         String?
+    /// Decimal latitude coordinate for GPS mapping.
+    latitude     Float
+    /// Decimal longitude coordinate for GPS mapping.
+    longitude    Float
+    /// Native PostGIS GEOGRAPHY(POINT, 4326) representation for geospatial proximity queries.
+    location     Raw(sql`geography(Point, 4326)`)?
+    /// Creation timestamp.
+    createdAt    DateTime                         @default(now()) @map("created_at")
+
+    /// Relationship to parent Campus.
+    campus       Campus                           @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+    @@map("locations")
+  }
+}
+
+
+// ============================================================================
+// 2. CORE NAMESPACE (Users, Profiles, Skills, Availability)
+// ============================================================================
+
+namespace core {
+  /// Represents an application-level user linked to Supabase Auth.
+  /// The `id` matches `auth.users(id)` from Supabase.
+  model User {
+    /// Primary identifier (UUID) matching Supabase auth.users.id.
+    id                 Uuid      @id
+    /// Unique university-issued student/faculty registration ID.
+    universityId       String    @unique @map("university_id")
+    /// Unique email address for notifications and account verification.
+    email              String    @unique
+    /// Optional contact phone number.
+    phone              String?
+    /// User authorization role: 'STUDENT', 'ADMIN', or 'MODERATOR'.
+    role               String    @default("STUDENT")
+    /// University verification status: 'PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED'.
+    verificationStatus String    @default("PENDING") @map("verification_status")
+    /// Soft-state flag indicating if user is actively permitted on the platform.
+    isActive           Boolean   @default(true) @map("is_active")
+    /// Trust score ranging from 0 to 100 based on gig completions and reviews.
+    trustScore         Decimal   @default(50) @map("trust_score")
+    /// Timestamp of the user's most recent session activity.
+    lastLoginAt        DateTime? @map("last_login_at")
+    /// Timestamp when the account was registered.
+    createdAt          DateTime  @default(now()) @map("created_at")
+    /// Auto-updated timestamp for the last account modification.
+    updatedAt          DateTime  @default(now()) @map("updated_at")
+
+    @@map("users")
+  }
+
+  /// Stores extended profile information for a user (bio, avatar, academics).
+  model UserProfile {
+    /// References User.id with 1-to-1 relationship. Cascades on user deletion.
+    userId             Uuid     @id @map("user_id")
+    /// Full name of the student or user.
+    fullName           String   @map("full_name")
+    /// Unique handle/username for campus identity and public mentions.
+    username           String?  @unique
+    /// Short personal biography.
+    bio                String?
+    /// Hosted avatar image URL.
+    avatarUrl          String?  @map("avatar_url")
+    /// Academic department (e.g., Computer Science, Mechanical).
+    department         String?
+    /// Academic degree program/course (e.g., B.Tech, MBA).
+    course             String?
+    /// Year of study (1 through 6).
+    yearOfStudy        Int?     @map("year_of_study")
+    /// Freeform summary of student skills.
+    skillsSummary      String?  @map("skills_summary")
+    /// Running average rating calculated from completed gigs (0.00 to 5.00).
+    ratingAverage      Decimal? @default(0) @map("rating_average")
+    /// Lifetime counter of successfully completed gigs.
+    totalGigsCompleted Int      @default(0) @map("total_gigs_completed")
+    /// Lifetime counter of gigs posted by this requester.
+    totalGigsPosted    Int      @default(0) @map("total_gigs_posted")
+    /// Record creation timestamp.
+    createdAt          DateTime @default(now()) @map("created_at")
+    /// Last update timestamp.
+    updatedAt          DateTime @default(now()) @map("updated_at")
+
+    /// Relationship to parent User model.
+    user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("user_profiles")
+  }
+
+  /// Master catalog of marketplace skills (e.g., Python, Graphic Design, Photography).
+  model Skill {
+    /// Unique identifier generated via PostgreSQL gen_random_uuid().
+    id          Uuid     @id @default(sql`gen_random_uuid()`)
+    /// Unique skill name.
+    name        String   @unique
+    /// Skill domain category (e.g., Tech, Design, Tutoring).
+    category    String?
+    /// Detailed description of the skill competency.
+    description String?
+    /// Timestamp when the skill was added to the master catalog.
+    createdAt   DateTime @default(now()) @map("created_at")
+
+    @@map("skills")
+  }
+
+  /// Join table representing a many-to-many relationship between Users and Skills.
+  model UserSkill {
+    /// Foreign key referencing User.id.
+    userId           Uuid     @map("user_id")
+    /// Foreign key referencing Skill.id.
+    skillId          Uuid     @map("skill_id")
+    /// Self-reported proficiency level from 1 (Beginner) to 5 (Expert).
+    proficiencyLevel Int      @default(3) @map("proficiency_level")
+    /// Number of years of practical experience with this skill.
+    yearsExperience  Decimal? @map("years_experience")
+    /// Indicates if this is highlighted as the user's primary/featured skill.
+    isPrimary        Boolean  @default(false) @map("is_primary")
+    /// Record creation timestamp.
+    createdAt        DateTime @default(now()) @map("created_at")
+
+    /// Relationship to the user holding this skill.
+    user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    /// Relationship to the skill catalog entry.
+    skill            Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    /// Composite primary key ensuring a user has at most one record per skill.
+    @@id([userId, skillId])
+    @@map("user_skills")
+  }
+
+  /// Stores recurring weekly availability schedules for student workers.
+  model UserAvailability {
+    /// Unique availability record identifier.
+    id          Uuid     @id @default(sql`gen_random_uuid()`)
+    /// Foreign key referencing User.id.
+    userId      Uuid     @map("user_id")
+    /// Day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+    dayOfWeek   Int      @map("day_of_week")
+    /// Availability slot start time.
+    startTime   Time?    @map("start_time")
+    /// Availability slot end time.
+    endTime     Time?    @map("end_time")
+    /// Flag indicating if the user is available during this time slot.
+    isAvailable Boolean  @default(true) @map("is_available")
+
+    /// Relationship to parent User.
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    /// A user can have at most one availability block per weekday.
+    @@unique([userId, dayOfWeek])
+    @@map("user_availability")
+  }
+}
+
+
+// ============================================================================
+// 3. MARKETPLACE NAMESPACE (Categories, Gigs, Requirements, Attachments, Claims, Events)
+// ============================================================================
+
+namespace marketplace {
+  /// High-level gig category (e.g. 'Delivery', 'Academic Assistance', 'Technical').
+  model Category {
+    /// Unique category identifier.
+    id          Uuid     @id @default(sql`gen_random_uuid()`)
+    /// Unique category title.
+    name        String   @unique
+    /// Category description.
+    description String?
+    /// Whether this category is actively available for new gigs.
+    isActive    Boolean  @default(true) @map("is_active")
+    /// Creation timestamp.
+    createdAt   DateTime @default(now()) @map("created_at")
+
+    @@map("categories")
+  }
+
+  /// Main marketplace gig entity posted by a requester and completed by a student worker.
+  model Gig {
+    /// Unique gig identifier.
+    id                 Uuid           @id @default(sql`gen_random_uuid()`)
+    /// Campus where the gig takes place.
+    campusId           Uuid           @map("campus_id")
+    /// User who posted the gig and is responsible for payment.
+    requesterId        Uuid           @map("requester_id")
+    /// Optional category assignment.
+    categoryId         Uuid?          @map("category_id")
+    /// Short descriptive title.
+    title              String
+    /// Full requirements, task details, and instructions.
+    description        String
+    /// Urgency level: 'LOW', 'NORMAL', 'HIGH', or 'URGENT'.
+    urgency            String         @default("NORMAL")
+    /// Monetary reward amount to be paid upon completion.
+    reward             Decimal
+    /// Payment currency ISO code (defaults to 'INR').
+    currency           String         @default("INR")
+    /// Current lifecycle state: 'DRAFT', 'OPEN', 'ASSIGNED', 'IN_PROGRESS', 'SUBMITTED', 'COMPLETED', etc.
+    status             String         @default("OPEN")
+    /// Optional campus location for task pickup.
+    pickupLocationId   Uuid?          @map("pickup_location_id")
+    /// Optional campus location for task drop-off / handover.
+    dropLocationId     Uuid?          @map("drop_location_id")
+    /// Pickup latitude coordinate.
+    pickupLatitude     Float?         @map("pickup_latitude")
+    /// Pickup longitude coordinate.
+    pickupLongitude    Float?         @map("pickup_longitude")
+    /// Drop-off latitude coordinate.
+    dropLatitude       Float?         @map("drop_latitude")
+    /// Drop-off longitude coordinate.
+    dropLongitude      Float?         @map("drop_longitude")
+    /// Target time for task pickup.
+    scheduledPickupAt  DateTime?      @map("scheduled_pickup_at")
+    /// Hard deadline when the gig must be completed.
+    deadlineAt         DateTime?      @map("deadline_at")
+    /// Gig posting timestamp.
+    createdAt          DateTime       @default(now()) @map("created_at")
+    /// Last status / detail update timestamp.
+    updatedAt          DateTime       @default(now()) @map("updated_at")
+
+    /// Relationship to Campus in campus namespace.
+    campus             campus.Campus  @relation(fields: [campusId], references: [id])
+    /// Relationship to requester User in core namespace.
+    requester          core.User      @relation(fields: [requesterId], references: [id])
+    /// Optional relationship to Category.
+    category           Category?      @relation(fields: [categoryId], references: [id])
+    /// Optional relationship to pickup Location in campus namespace.
+    pickupLocation     campus.Location? @relation("GigPickupLocation", fields: [pickupLocationId], references: [id])
+    /// Optional relationship to drop Location in campus namespace.
+    dropLocation       campus.Location? @relation("GigDropLocation", fields: [dropLocationId], references: [id])
+
+    @@map("gigs")
+  }
+
+  /// Specifies the skills and minimum competency levels required for a gig.
+  model GigSkillRequirement {
+    /// Foreign key referencing the Gig.
+    gigId         Uuid        @map("gig_id")
+    /// Foreign key referencing the required Skill in core namespace.
+    skillId       Uuid        @map("skill_id")
+    /// Minimum skill proficiency level required (1 to 5).
+    requiredLevel Int?        @default(1) @map("required_level")
+    /// Whether worker matching strictly mandates this skill.
+    isMandatory   Boolean     @default(true) @map("is_mandatory")
+
+    /// Relationship to Gig.
+    gig           Gig         @relation(fields: [gigId], references: [id], onDelete: Cascade)
+    /// Relationship to Skill in core namespace.
+    skill         core.Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    /// Composite primary key.
+    @@id([gigId, skillId])
+    @@map("gig_skill_requirements")
+  }
+
+  /// Files, images, and documents attached to a gig description.
+  model GigAttachment {
+    /// Unique attachment identifier.
+    id            Uuid      @id @default(sql`gen_random_uuid()`)
+    /// Foreign key referencing the parent Gig.
+    gigId         Uuid      @map("gig_id")
+    /// User who uploaded the attachment in core namespace.
+    uploadedBy    Uuid      @map("uploaded_by")
+    /// Original uploaded file name.
+    fileName      String    @map("file_name")
+    /// Storage URL where the file is hosted.
+    fileUrl       String    @map("file_url")
+    /// MIME content type.
+    fileType      String?   @map("file_type")
+    /// File size in bytes.
+    fileSizeBytes BigInt?   @map("file_size_bytes")
+    /// Upload timestamp.
+    createdAt     DateTime  @default(now()) @map("created_at")
+
+    /// Relationship to Gig.
+    gig           Gig       @relation(fields: [gigId], references: [id], onDelete: Cascade)
+    /// Relationship to uploader User in core namespace.
+    uploader      core.User @relation(fields: [uploadedBy], references: [id])
+
+    @@map("gig_attachments")
+  }
+
+  /// Represents the exclusive claim on a gig by a single worker to prevent double-claiming.
+  model GigClaim {
+    /// Unique claim identifier.
+    id          Uuid      @id @default(sql`gen_random_uuid()`)
+    /// Unique 1-to-1 relationship to Gig ensuring only one active claim per gig.
+    gigId       Uuid      @unique @map("gig_id")
+    /// Worker User who claimed this gig in core namespace.
+    workerId    Uuid      @map("worker_id")
+    /// Status of claim: 'ACTIVE', 'CANCELLED', 'COMPLETED'.
+    status      String    @default("ACTIVE")
+    /// Timestamp when claimed.
+    claimedAt   DateTime  @default(now()) @map("claimed_at")
+    /// Timestamp when worker started executing the gig.
+    startedAt   DateTime? @map("started_at")
+    /// Timestamp when work was completed.
+    completedAt DateTime? @map("completed_at")
+    /// Timestamp if the claim was cancelled before completion.
+    cancelledAt DateTime? @map("cancelled_at")
+
+    /// Relationship to claimed Gig.
+    gig         Gig       @relation(fields: [gigId], references: [id], onDelete: Cascade)
+    /// Relationship to worker User in core namespace.
+    worker      core.User @relation(fields: [workerId], references: [id])
+
+    @@map("gig_claims")
+  }
+
+  /// Audit event stream for gig lifecycle actions and debugging.
+  model GigEvent {
+    /// Unique event record identifier.
+    id        Uuid       @id @default(sql`gen_random_uuid()`)
+    /// Gig this event relates to.
+    gigId     Uuid       @map("gig_id")
+    /// Event type identifier (e.g. 'CLAIMED', 'CANCELLED', 'PAID').
+    eventType String     @map("event_type")
+    /// User who performed the action triggering this event in core namespace.
+    actorId   Uuid?      @map("actor_id")
+    /// Arbitrary JSON metadata associated with the event.
+    metadata  Json       @default(json`{}`)
+    /// Event creation timestamp.
+    createdAt DateTime   @default(now()) @map("created_at")
+
+    /// Relationship to Gig.
+    gig       Gig        @relation(fields: [gigId], references: [id], onDelete: Cascade)
+    /// Relationship to actor User in core namespace.
+    actor     core.User? @relation(fields: [actorId], references: [id])
+
+    @@map("gig_events")
+  }
+
+  /// Records all transitions between gig statuses over time for complete history.
+  model GigStatusHistory {
+    /// Unique history entry identifier.
+    id         Uuid       @id @default(sql`gen_random_uuid()`)
+    /// Gig being transitioned.
+    gigId      Uuid       @map("gig_id")
+    /// Previous status (null for initial creation).
+    fromStatus String?    @map("from_status")
+    /// New status reached.
+    toStatus   String     @map("to_status")
+    /// User who initiated this status transition in core namespace.
+    changedBy  Uuid?      @map("changed_by")
+    /// Optional explanation for the status change.
+    reason     String?
+    /// Status transition timestamp.
+    createdAt  DateTime   @default(now()) @map("created_at")
+
+    /// Relationship to Gig.
+    gig        Gig        @relation(fields: [gigId], references: [id], onDelete: Cascade)
+    /// Relationship to changer User in core namespace.
+    changer    core.User? @relation(fields: [changedBy], references: [id])
+
+    @@map("gig_status_history")
+  }
+}
+
+
+// ============================================================================
+// 4. MATCHING NAMESPACE (Preferences, Match Results, Feedback)
+// ============================================================================
+
+namespace matching {
+  /// User feedback on algorithmic matching to train and optimize scoring models.
+  model MatchFeedback {
+    /// Unique feedback record identifier.
+    id             Uuid        @id @default(sql`gen_random_uuid()`)
+    /// Reference to the MatchResult.
+    matchResultId  Uuid        @map("match_result_id")
+    /// Worker providing the feedback in core namespace.
+    workerId       Uuid?       @map("worker_id")
+    /// Outcome: 'ACCEPTED', 'REJECTED', 'IGNORED', 'COMPLETED', 'FAILED'.
+    feedbackType   String      @map("feedback_type")
+    /// Optional freeform reason for rejection or feedback.
+    feedbackReason String?     @map("feedback_reason")
+    /// Creation timestamp.
+    createdAt      DateTime    @default(now()) @map("created_at")
+
+    /// Relationship to MatchResult.
+    matchResult    MatchResult @relation(fields: [matchResultId], references: [id], onDelete: Cascade)
+    /// Relationship to worker User in core namespace.
+    worker         core.User?  @relation(fields: [workerId], references: [id])
+
+    @@map("match_feedback")
+  }
+
+  /// Computed candidate match between an open gig and a potential worker.
+  model MatchResult {
+    /// Unique match result identifier.
+    id                Uuid            @id @default(sql`gen_random_uuid()`)
+    /// Foreign key referencing Gig in marketplace namespace.
+    gigId             Uuid            @map("gig_id")
+    /// Foreign key referencing candidate worker User in core namespace.
+    workerId          Uuid            @map("worker_id")
+    /// Aggregate match score (sum of component weights).
+    totalScore        Decimal         @map("total_score")
+    /// Component score based on skill overlap.
+    skillScore        Decimal?        @default(0) @map("skill_score")
+    /// Component score based on proximity.
+    distanceScore     Decimal?        @default(0) @map("distance_score")
+    /// Component score based on matching schedule availability.
+    availabilityScore Decimal?        @default(0) @map("availability_score")
+    /// Component score based on worker rating.
+    ratingScore       Decimal?        @default(0) @map("rating_score")
+    /// Component score based on reliability and completion history.
+    reliabilityScore  Decimal?        @default(0) @map("reliability_score")
+    /// Physical distance in meters between worker and gig location.
+    distanceMeters    Float?          @map("distance_meters")
+    /// Rank position among all matches for this gig.
+    rank              Int?
+    /// Generation timestamp.
+    generatedAt       DateTime        @default(now()) @map("generated_at")
+
+    /// Relationship to Gig in marketplace namespace.
+    gig               marketplace.Gig @relation(fields: [gigId], references: [id], onDelete: Cascade)
+    /// Relationship to candidate worker User in core namespace.
+    worker            core.User       @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+    /// Each worker can only have one match entry per gig.
+    @@unique([gigId, workerId])
+    @@map("match_results")
+  }
+
+  /// Stores a worker's preferences for receiving gig recommendations.
+  model MatchingPreference {
+    /// Foreign key referencing User.id (1-to-1) in core namespace.
+    userId              Uuid      @id @map("user_id")
+    /// Maximum distance (in meters) the worker is willing to travel on campus.
+    maxDistanceMeters   Int?      @default(2000) @map("max_distance_meters")
+    /// Minimum rating of requesters this worker prefers to engage with.
+    minimumRating       Decimal?  @default(0) @map("minimum_rating")
+    /// JSON array of preferred category IDs.
+    preferredCategories Json?     @default(json`[]`) @map("preferred_categories")
+    /// JSON array of preferred skill IDs.
+    preferredSkills     Json?     @default(json`[]`) @map("preferred_skills")
+    /// Last update timestamp.
+    updatedAt           DateTime  @default(now()) @map("updated_at")
+
+    /// Relationship to parent User in core namespace.
+    user                core.User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("matching_preferences")
+  }
+}
+
+
+// ============================================================================
+// 5. COMMUNICATION NAMESPACE (Conversations, Participants, Messages)
+// ============================================================================
+
+namespace communication {
+  /// Chat conversation session linked optionally to a specific gig.
+  model Conversation {
+    /// Unique conversation identifier.
+    id        Uuid             @id @default(sql`gen_random_uuid()`)
+    /// Unique reference to Gig if this chat belongs to a gig thread.
+    gigId     Uuid?            @unique @map("gig_id")
+    /// Chat creation timestamp.
+    createdAt DateTime         @default(now()) @map("created_at")
+    /// Timestamp of latest activity in conversation.
+    updatedAt DateTime         @default(now()) @map("updated_at")
+
+    /// Relationship to Gig in marketplace namespace. Sets null on gig deletion.
+    gig       marketplace.Gig? @relation(fields: [gigId], references: [id], onDelete: SetNull)
+
+    @@map("conversations")
+  }
+
+  /// Join table representing participants active in a conversation.
+  model ConversationParticipant {
+    /// Foreign key referencing the Conversation.
+    conversationId Uuid         @map("conversation_id")
+    /// Foreign key referencing the participating User in core namespace.
+    userId         Uuid         @map("user_id")
+    /// Timestamp when participant joined the chat.
+    joinedAt       DateTime     @default(now()) @map("joined_at")
+    /// Last read marker for tracking unread message counts.
+    lastReadAt     DateTime?    @map("last_read_at")
+
+    /// Relationship to Conversation.
+    conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+    /// Relationship to User in core namespace.
+    user           core.User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    /// Composite primary key.
+    @@id([conversationId, userId])
+    @@map("conversation_participants")
+  }
+
+  /// Individual chat message exchanged between users.
+  model Message {
+    /// Unique message identifier.
+    id             Uuid         @id @default(sql`gen_random_uuid()`)
+    /// Foreign key referencing parent Conversation.
+    conversationId Uuid         @map("conversation_id")
+    /// Foreign key referencing sender User in core namespace.
+    senderId       Uuid         @map("sender_id")
+    /// Message content type: 'TEXT', 'IMAGE', 'FILE', or 'SYSTEM'.
+    messageType    String       @default("TEXT") @map("message_type")
+    /// Text body of the message.
+    content        String?
+    /// Optional attachment URL if sharing media.
+    attachmentUrl  String?      @map("attachment_url")
+    /// Flag indicating whether message was edited.
+    isEdited       Boolean      @default(false) @map("is_edited")
+    /// Soft-delete flag for retracted messages.
+    isDeleted      Boolean      @default(false) @map("is_deleted")
+    /// Creation timestamp.
+    createdAt      DateTime     @default(now()) @map("created_at")
+    /// Modification timestamp.
+    updatedAt      DateTime     @default(now()) @map("updated_at")
+
+    /// Relationship to parent Conversation.
+    conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+    /// Relationship to sender User in core namespace.
+    sender         core.User    @relation(fields: [senderId], references: [id])
+
+    @@map("messages")
+  }
+}
+
+
+// ============================================================================
+// 6. NOTIFICATION NAMESPACE (Notifications, Deliveries, Preferences)
+// ============================================================================
+
+namespace notification {
+  /// In-app and push notification record dispatched to a user.
+  model Notification {
+    /// Unique notification identifier.
+    id           Uuid             @id @default(sql`gen_random_uuid()`)
+    /// Target recipient User in core namespace.
+    userId       Uuid             @map("user_id")
+    /// Notification category / type descriptor.
+    type         String
+    /// Short title summary.
+    title        String
+    /// Full notification message body.
+    message      String
+    /// Optional gig associated with this notification in marketplace namespace.
+    relatedGigId Uuid?            @map("related_gig_id")
+    /// Extra structured payload data.
+    data         Json?            @default(json`{}`)
+    /// Boolean flag tracking if the user has viewed the notification.
+    isRead       Boolean          @default(false) @map("is_read")
+    /// Timestamp when read.
+    readAt       DateTime?        @map("read_at")
+    /// Dispatch creation timestamp.
+    createdAt    DateTime         @default(now()) @map("created_at")
+
+    /// Relationship to recipient User in core namespace.
+    user         core.User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    /// Optional relationship to Gig in marketplace namespace.
+    relatedGig   marketplace.Gig? @relation(fields: [relatedGigId], references: [id], onDelete: SetNull)
+
+    @@map("notifications")
+  }
+
+  /// Delivery receipts tracking individual transmission channels for notifications.
+  model NotificationDelivery {
+    /// Unique delivery record identifier.
+    id             Uuid         @id @default(sql`gen_random_uuid()`)
+    /// Notification being dispatched.
+    notificationId Uuid         @map("notification_id")
+    /// Transmission channel: 'IN_APP', 'EMAIL', 'PUSH', or 'SMS'.
+    channel        String
+    /// Transmission status: 'PENDING', 'SENT', 'FAILED', or 'DELIVERED'.
+    status         String       @default("PENDING")
+    /// Timestamp of delivery confirmation.
+    deliveredAt    DateTime?    @map("delivered_at")
+    /// Error details if transmission failed.
+    failureReason  String?      @map("failure_reason")
+    /// Record creation timestamp.
+    createdAt      DateTime     @default(now()) @map("created_at")
+
+    /// Relationship to parent Notification.
+    notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+    @@map("notification_deliveries")
+  }
+
+  /// User communication channel opt-in/opt-out preferences.
+  model NotificationPreference {
+    /// Foreign key referencing User.id (1-to-1) in core namespace.
+    userId        Uuid      @id @map("user_id")
+    /// Enable/disable in-app banner notifications.
+    inAppEnabled  Boolean   @default(true) @map("in_app_enabled")
+    /// Enable/disable email notifications.
+    emailEnabled  Boolean   @default(true) @map("email_enabled")
+    /// Enable/disable device push notifications.
+    pushEnabled   Boolean   @default(true) @map("push_enabled")
+    /// Enable/disable SMS notifications.
+    smsEnabled    Boolean   @default(false) @map("sms_enabled")
+    /// Last update timestamp.
+    updatedAt     DateTime  @default(now()) @map("updated_at")
+
+    /// Relationship to parent User in core namespace.
+    user          core.User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("notification_preferences")
+  }
+}
+
+
+// ============================================================================
+// 7. PAYMENT NAMESPACE (Wallets, Transactions, Gig Payments, Payouts, Refunds)
+// ============================================================================
+
+namespace payment {
+  /// In-app student currency wallet storing available and escrow-held funds.
+  model Wallet {
+    /// Unique wallet identifier.
+    id               Uuid      @id @default(sql`gen_random_uuid()`)
+    /// Unique foreign key referencing User.id (1-to-1) in core namespace.
+    userId           Uuid      @unique @map("user_id")
+    /// Funds immediately withdrawable or spendable.
+    availableBalance Decimal   @default(0) @map("available_balance")
+    /// Funds currently held in escrow pending gig completion.
+    pendingBalance   Decimal   @default(0) @map("pending_balance")
+    /// Currency code (defaults to 'INR').
+    currency         String    @default("INR")
+    /// Wallet creation timestamp.
+    createdAt        DateTime  @default(now()) @map("created_at")
+    /// Balance update timestamp.
+    updatedAt        DateTime  @default(now()) @map("updated_at")
+
+    /// Relationship to wallet owner User in core namespace.
+    user             core.User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("wallets")
+  }
+
+  /// Immutable ledger of all balance credits, debits, holds, and releases.
+  model WalletTransaction {
+    /// Unique transaction ledger identifier.
+    id              Uuid      @id @default(sql`gen_random_uuid()`)
+    /// Wallet affected by this transaction.
+    walletId        Uuid      @map("wallet_id")
+    /// User who owns the affected wallet in core namespace.
+    userId          Uuid      @map("user_id")
+    /// Type of transaction: 'CREDIT', 'DEBIT', 'HOLD', 'RELEASE', 'REFUND', 'PAYOUT'.
+    transactionType String    @map("transaction_type")
+    /// Transaction value (must be positive).
+    amount          Decimal
+    /// Optional entity classification (e.g. 'GIG_PAYMENT', 'BANK_WITHDRAWAL').
+    referenceType   String?   @map("reference_type")
+    /// Foreign reference UUID to the source gig, payment, or payout.
+    referenceId     Uuid?     @map("reference_id")
+    /// Human-readable ledger description.
+    description     String?
+    /// Transaction recording timestamp.
+    createdAt       DateTime  @default(now()) @map("created_at")
+
+    /// Relationship to Wallet.
+    wallet          Wallet    @relation(fields: [walletId], references: [id])
+    /// Relationship to User in core namespace.
+    user            core.User @relation(fields: [userId], references: [id])
+
+    @@map("wallet_transactions")
+  }
+
+  /// Escrow payment records linking a gig to payer and payee.
+  model GigPayment {
+    /// Unique gig payment identifier.
+    id                Uuid            @id @default(sql`gen_random_uuid()`)
+    /// Unique reference ensuring one payment flow per gig in marketplace namespace.
+    gigId             Uuid            @unique @map("gig_id")
+    /// Requester paying for the gig in core namespace.
+    payerId           Uuid            @map("payer_id")
+    /// Worker receiving funds upon completion in core namespace.
+    payeeId           Uuid?           @map("payee_id")
+    /// Payment amount.
+    amount            Decimal
+    /// Payment currency code.
+    currency          String          @default("INR")
+    /// Escrow state: 'PENDING', 'AUTHORIZED', 'HELD', 'RELEASED', 'FAILED', 'REFUNDED', 'CANCELLED'.
+    status            String          @default("PENDING")
+    /// External payment gateway provider name (e.g. Razorpay, Stripe).
+    provider          String?
+    /// External gateway payment reference ID.
+    providerPaymentId String?         @unique @map("provider_payment_id")
+    /// Payment record creation timestamp.
+    createdAt         DateTime        @default(now()) @map("created_at")
+    /// Payment status change timestamp.
+    updatedAt         DateTime        @default(now()) @map("updated_at")
+
+    /// Relationship to paid Gig in marketplace namespace.
+    gig               marketplace.Gig @relation(fields: [gigId], references: [id])
+    /// Relationship to payer User in core namespace.
+    payer             core.User       @relation("PayerPayments", fields: [payerId], references: [id])
+    /// Relationship to payee User in core namespace.
+    payee             core.User?      @relation("PayeePayments", fields: [payeeId], references: [id])
+
+    @@map("gig_payments")
+  }
+
+  /// Disbursement requests from student wallets to bank accounts or UPI.
+  model Payout {
+    /// Unique payout record identifier.
+    id               Uuid      @id @default(sql`gen_random_uuid()`)
+    /// User requesting the withdrawal in core namespace.
+    userId           Uuid      @map("user_id")
+    /// Amount to disburse.
+    amount           Decimal
+    /// Payout status: 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'.
+    status           String    @default("PENDING")
+    /// Payment gateway payout tracking ID.
+    providerPayoutId String?   @unique @map("provider_payout_id")
+    /// Payout request timestamp.
+    requestedAt      DateTime  @default(now()) @map("requested_at")
+    /// Payout execution completion timestamp.
+    completedAt      DateTime? @map("completed_at")
+
+    /// Relationship to User requesting payout in core namespace.
+    user             core.User @relation(fields: [userId], references: [id])
+
+    @@map("payouts")
+  }
+
+  /// Refund transactions returning escrowed funds back to the gig requester.
+  model Refund {
+    /// Unique refund identifier.
+    id               Uuid        @id @default(sql`gen_random_uuid()`)
+    /// Associated GigPayment being refunded.
+    gigPaymentId     Uuid        @map("gig_payment_id")
+    /// Refund amount.
+    amount           Decimal
+    /// Justification for refund.
+    reason           String?
+    /// Refund processing status: 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'.
+    status           String      @default("PENDING")
+    /// External gateway refund identifier.
+    providerRefundId String?     @unique @map("provider_refund_id")
+    /// Refund request timestamp.
+    createdAt        DateTime    @default(now()) @map("created_at")
+    /// Refund completion timestamp.
+    completedAt      DateTime?   @map("completed_at")
+
+    /// Relationship to GigPayment.
+    gigPayment       GigPayment  @relation(fields: [gigPaymentId], references: [id])
+
+    @@map("refunds")
+  }
+}
+
+
+// ============================================================================
+// 8. REPUTATION NAMESPACE (Ratings, Reputation History)
+// ============================================================================
+
+namespace reputation {
+  /// Review and multi-category rating submitted after gig completion.
+  model Rating {
+    /// Unique rating identifier.
+    id                 Uuid            @id @default(sql`gen_random_uuid()`)
+    /// Gig this rating was submitted for in marketplace namespace.
+    gigId              Uuid            @map("gig_id")
+    /// User who submitted the review in core namespace.
+    raterId            Uuid            @map("rater_id")
+    /// User receiving the review in core namespace.
+    ratedId            Uuid            @map("rated_id")
+    /// Overall score from 1 to 5.
+    score              Int
+    /// Communication quality sub-score (1 to 5).
+    communicationScore Int?            @map("communication_score")
+    /// Work output quality sub-score (1 to 5).
+    qualityScore       Int?            @map("quality_score")
+    /// Punctuality and reliability sub-score (1 to 5).
+    reliabilityScore   Int?            @map("reliability_score")
+    /// Review text comments.
+    comment            String?
+    /// Submission timestamp.
+    createdAt          DateTime        @default(now()) @map("created_at")
+
+    /// Relationship to Gig in marketplace namespace.
+    gig                marketplace.Gig @relation(fields: [gigId], references: [id])
+    /// Relationship to reviewer User in core namespace.
+    rater              core.User       @relation("RaterRatings", fields: [raterId], references: [id])
+    /// Relationship to reviewed User in core namespace.
+    rated              core.User       @relation("RatedRatings", fields: [ratedId], references: [id])
+
+    /// Ensures a rater can only review a given gig once.
+    @@unique([gigId, raterId])
+    @@map("ratings")
+  }
+
+  /// Audit log tracking changes in a user's trust score over time.
+  model ReputationHistory {
+    /// Unique history entry identifier.
+    id            Uuid      @id @default(sql`gen_random_uuid()`)
+    /// User whose score was modified in core namespace.
+    userId        Uuid      @map("user_id")
+    /// Score prior to adjustment.
+    previousScore Decimal?  @map("previous_score")
+    /// Adjusted new trust score.
+    newScore      Decimal   @map("new_score")
+    /// Descriptive justification for score change (e.g. 'Gig completion', 'Report penalty').
+    reason        String
+    /// Optional reference UUID to related gig, rating, or moderation action.
+    referenceId   Uuid?     @map("reference_id")
+    /// Score adjustment timestamp.
+    createdAt     DateTime  @default(now()) @map("created_at")
+
+    /// Relationship to parent User in core namespace.
+    user          core.User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("reputation_history")
+  }
+}
+
+
+// ============================================================================
+// 9. SECURITY NAMESPACE (User Blocks, Reports, Moderation Actions, Audit Logs)
+// ============================================================================
+
+namespace security {
+  /// Mutual user blocking to prevent interaction, gig claiming, and messaging.
+  model UserBlock {
+    /// Unique user block record identifier.
+    id        Uuid      @id @default(sql`gen_random_uuid()`)
+    /// User initiating the block in core namespace.
+    blockerId Uuid      @map("blocker_id")
+    /// User being blocked in core namespace.
+    blockedId Uuid      @map("blocked_id")
+    /// Optional reason for block.
+    reason    String?
+    /// Creation timestamp.
+    createdAt DateTime  @default(now()) @map("created_at")
+
+    /// Relationship to blocking User in core namespace.
+    blocker   core.User @relation("BlockerBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
+    /// Relationship to blocked User in core namespace.
+    blocked   core.User @relation("BlockedBlocks", fields: [blockedId], references: [id], onDelete: Cascade)
+
+    /// Ensures a user cannot block the same account multiple times.
+    @@unique([blockerId, blockedId])
+    @@map("user_blocks")
+  }
+
+  /// Incident reports submitted against users or gigs for safety review.
+  model Report {
+    /// Unique report identifier.
+    id             Uuid             @id @default(sql`gen_random_uuid()`)
+    /// User submitting the report in core namespace.
+    reporterId     Uuid             @map("reporter_id")
+    /// Reported user target in core namespace (if reporting an individual).
+    reportedUserId Uuid?            @map("reported_user_id")
+    /// Reported gig target in marketplace namespace (if reporting a suspicious or prohibited gig).
+    reportedGigId  Uuid?            @map("reported_gig_id")
+    /// Primary report category / rule violation reason.
+    reason         String
+    /// Detailed description of the incident.
+    description    String?
+    /// Review status: 'OPEN', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED'.
+    status         String           @default("OPEN")
+    /// Report submission timestamp.
+    createdAt      DateTime         @default(now()) @map("created_at")
+    /// Resolution timestamp when closed by moderator.
+    resolvedAt     DateTime?        @map("resolved_at")
+
+    /// Relationship to reporting User in core namespace.
+    reporter       core.User        @relation("ReporterReports", fields: [reporterId], references: [id])
+    /// Optional relationship to reported User in core namespace.
+    reportedUser   core.User?       @relation("ReportedUserReports", fields: [reportedUserId], references: [id])
+    /// Optional relationship to reported Gig in marketplace namespace.
+    reportedGig    marketplace.Gig? @relation(fields: [reportedGigId], references: [id])
+
+    @@map("reports")
+  }
+
+  /// Administrative and moderator intervention log (e.g. warnings, suspensions, gig takedowns).
+  model ModerationAction {
+    /// Unique moderation action record identifier.
+    id           Uuid             @id @default(sql`gen_random_uuid()`)
+    /// Moderator who executed the action in core namespace.
+    moderatorId  Uuid?            @map("moderator_id")
+    /// Target user subject to moderation in core namespace.
+    targetUserId Uuid?            @map("target_user_id")
+    /// Target gig removed or flagged in marketplace namespace.
+    targetGigId  Uuid?            @map("target_gig_id")
+    /// Action taken (e.g. 'WARN', 'SUSPEND', 'DELETE_GIG', 'BAN').
+    actionType   String           @map("action_type")
+    /// Official rationale for the action.
+    reason       String?
+    /// Structured metadata documenting enforcement details.
+    metadata     Json?            @default(json`{}`)
+    /// Enforcement timestamp.
+    createdAt    DateTime         @default(now()) @map("created_at")
+
+    /// Relationship to moderator User in core namespace.
+    moderator    core.User?       @relation("ModeratorActions", fields: [moderatorId], references: [id])
+    /// Relationship to target User in core namespace.
+    targetUser   core.User?       @relation("TargetUserModerationActions", fields: [targetUserId], references: [id])
+    /// Relationship to target Gig in marketplace namespace.
+    targetGig    marketplace.Gig? @relation(fields: [targetGigId], references: [id])
+
+    @@map("moderation_actions")
+  }
+
+  /// Security audit trail capturing sensitive operations across the system.
+  model AuditLog {
+    /// Unique audit record identifier.
+    id         Uuid            @id @default(sql`gen_random_uuid()`)
+    /// Actor User performing the action in core namespace (null if automated system action).
+    actorId    Uuid?           @map("actor_id")
+    /// Action identifier (e.g. 'USER_LOGIN', 'PAYMENT_RELEASED', 'ROLE_CHANGED').
+    action     String
+    /// Database entity type involved (e.g. 'User', 'Gig', 'Wallet').
+    entityType String?         @map("entity_type")
+    /// UUID of the entity affected.
+    entityId   Uuid?           @map("entity_id")
+    /// Previous state payload before modification.
+    oldData    Json?           @map("old_data")
+    /// New state payload after modification.
+    newData    Json?           @map("new_data")
+    /// Client IP address using PostgreSQL native INET type via Raw(sql`inet`).
+    ipAddress  Raw(sql`inet`)? @map("ip_address")
+    /// Client User-Agent string.
+    userAgent  String?         @map("user_agent")
+    /// Audit logging timestamp.
+    createdAt  DateTime        @default(now()) @map("created_at")
+
+    /// Relationship to actor User in core namespace.
+    actor      core.User?      @relation(fields: [actorId], references: [id])
+
+    @@map("audit_logs")
+  }
+}
